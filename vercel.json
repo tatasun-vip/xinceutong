@@ -2,17 +2,8 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "buildCommand": "npm --prefix xinceutong-web install && npm --prefix xinceutong-web run build",
   "outputDirectory": "xinceutong-web/dist",
-  "builds": [
-    {
-      "src": "api/index.py",
-      "use": "@vercel/python",
-      "config": {
-        "maxLambdaSize": "50mb",
-        "runtime": "python3.11"
-      }
-    }
-  ],
   "rewrites": [
+    { "source": "/(.*)", "destination": "/index.html" },
     { "source": "/api/(.*)", "destination": "/api/index.py" }
   ],
   "env": {

@@ -1,0 +1,66 @@
+/* utils/styles/uni-globals.scss
+ * 复制 uni.scss 的所有变量，供 .scss 文件 import
+ * （vite-plugin-uni 不会自动注入 uni.scss 变量给 .scss）
+ */
+
+$font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", "Hiragino Sans GB", sans-serif;
+$font-serif:  "Source Han Serif SC", "Noto Serif SC", "Songti SC", "STSong", "SimSun", serif;
+$font-mono:   "SF Mono", "Menlo", "Consolas", monospace;
+
+$ff-base:  $font-family;
+$ff-serif: $font-serif;
+$ff-mono:  $font-mono;
+
+$primary:       #0B2545;
+$primary-2:     #13315C;
+$primary-light: #EBF1F8;
+$primary-tint:  #F5F7FA;
+$primary-dark:  #061A33;
+$primary-line:  #D6DEE9;
+
+$accent:        #B89554;
+$accent-light:  #FAF3E3;
+$accent-dark:   #8C6F36;
+
+$success:       #2C7A4B;
+$warning:       #B25E00;
+$danger:        #9B2226;
+$info:          $primary-2;
+
+$text-main:     #1A1A1A;
+$text-sub:      #5A6473;
+$text-weak:     #94A0B0;
+$text-white:    #FFFFFF;
+
+$bg:            #FAFAF7;
+$bg-2:          #F2F4F7;
+$card:          #FFFFFF;
+$border:        #DDE2EA;
+$border-light:  #ECEFF4;
+
+$radius-card:   8rpx;
+$radius-btn:    4rpx;
+$radius-tag:    4rpx;
+$radius-pill:   9999rpx;
+
+$btn-height:    96rpx;
+$btn-height-sm: 72rpx;
+
+$font-xs:   22rpx;
+$font-sm:   26rpx;
+$font-md:   30rpx;
+$font-lg:   32rpx;
+$font-xl:   36rpx;
+$font-2xl:  44rpx;
+$font-3xl:  56rpx;
+$font-4xl:  72rpx;
+
+$space-1: 8rpx;
+$space-2: 16rpx;
+$space-3: 24rpx;
+$space-4: 32rpx;
+$space-5: 48rpx;
+$space-6: 64rpx;
+
+$shadow-card:  0 1rpx 0 rgba(11, 37, 69, 0.04);
+$shadow-hover: 0 2rpx 8rpx rgba(11, 37, 69, 0.08);

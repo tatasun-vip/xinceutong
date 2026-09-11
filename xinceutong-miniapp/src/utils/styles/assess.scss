@@ -1,0 +1,212 @@
+/* utils/styles/assess.scss - 5 步填写流程公共样式（金融合规严肃风） */
+/* 全局变量由 vite.config.ts 的 additionalData 注入 */
+
+/* ===== 页面框架 ===== */
+.assess-page {
+  min-height: 100vh;
+  background: $bg;
+  display: flex;
+  flex-direction: column;
+  font-family: $ff-base;
+}
+
+.assess-content {
+  flex: 1;
+  padding: 0 $space-4;
+  // 给底部 fixed 按钮区让出空间（约 200rpx：按钮+padding+安全区）
+  padding-bottom: calc(180rpx + env(safe-area-inset-bottom));
+}
+
+/* ===== 章节（"01 基础信息" 编号+标题+描述） ===== */
+.section {
+  margin-top: $space-5;
+}
+.section-head {
+  display: flex;
+  align-items: baseline;
+  gap: $space-2;
+  margin-bottom: $space-2;
+  padding-bottom: $space-2;
+  border-bottom: 1rpx solid $border;
+}
+.section-index {
+  font-family: $ff-serif;
+  font-size: $font-lg;
+  font-weight: 600;
+  color: $accent;
+  letter-spacing: 1rpx;
+}
+.section-title {
+  font-family: $ff-serif;
+  font-size: $font-xl;
+  font-weight: 600;
+  color: $primary;
+  letter-spacing: 1rpx;
+}
+.section-required {
+  font-family: $ff-serif;
+  color: $danger;
+  margin-left: 4rpx;
+}
+.section-hint {
+  font-size: $font-sm;
+  color: $text-sub;
+  line-height: 1.6;
+  margin-bottom: $space-3;
+  letter-spacing: 0.3rpx;
+}
+.section-options {
+  display: flex;
+  flex-direction: column;
+  gap: 16rpx;
+}
+
+/* ===== 错误/警告列表 ===== */
+.validation-list {
+  margin: $space-4 $space-4 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12rpx;
+}
+.validation-item {
+  display: flex;
+  align-items: flex-start;
+  padding: 16rpx 20rpx;
+  background: $card;
+  border-left: 4rpx solid $text-weak;
+  font-size: $font-sm;
+  color: $text-main;
+  line-height: 1.6;
+  border-radius: 0;
+  &.level-info    { border-left-color: $primary; background: $primary-tint; }
+  &.level-warning { border-left-color: $accent; background: $accent-light; }
+  &.level-error   { border-left-color: $danger;  background: #FCEDED; }
+}
+.validation-icon {
+  font-family: $ff-serif;
+  font-weight: 600;
+  font-size: $font-md;
+  margin-right: 12rpx;
+  flex-shrink: 0;
+  &.level-info    { color: $primary; }
+  &.level-warning { color: $accent-dark; }
+  &.level-error   { color: $danger; }
+}
+.validation-text { flex: 1; }
+
+/* ===== 底部固定按钮区 ===== */
+.assess-footer {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: $card;
+  padding: $space-3 $space-4 calc(#{$space-3} + env(safe-area-inset-bottom));
+  border-top: 1rpx solid $border-light;
+  z-index: 10;
+  box-shadow: 0 -2rpx 12rpx rgba(11, 37, 69, 0.04);
+}
+.btn-row {
+  display: flex;
+  gap: $space-3;
+  &.btn-row-3 {
+    gap: $space-2;
+    .btn-block-primary   { flex: 2; }
+    .btn-block-secondary { flex: 1; }
+    .btn-block-tertiary  { flex: 1; }
+  }
+}
+.btn-block-primary {
+  flex: 1;
+  height: $btn-height;
+  line-height: $btn-height;
+  background: $primary;
+  color: $text-white;
+  font-size: $font-lg;
+  font-weight: 500;
+  border-radius: $radius-btn;
+  border: none;
+  letter-spacing: 4rpx;
+  &.disabled   { background: $text-weak; pointer-events: none; }
+  &.is-pending { background: $text-weak; }
+  &.btn-accent { background: $accent; }
+}
+.btn-block-secondary {
+  width: 200rpx;
+  height: $btn-height;
+  line-height: $btn-height;
+  background: transparent;
+  color: $primary;
+  border: 1rpx solid $primary;
+  border-radius: $radius-btn;
+  font-size: $font-md;
+  letter-spacing: 2rpx;
+}
+.btn-block-tertiary {
+  height: $btn-height;
+  line-height: $btn-height;
+  background: transparent;
+  color: $text-weak;
+  border: 1rpx solid $border-light;
+  border-radius: $radius-btn;
+  font-size: $font-md;
+  letter-spacing: 1rpx;
+  &:active { color: $primary; border-color: $primary; }
+}
+
+/* ===== 评分环 ===== */
+.score-ring-wrap {
+  position: relative;
+  width: 280rpx;
+  height: 280rpx;
+  margin: 0 auto;
+}
+.score-ring-svg {
+  width: 100%;
+  height: 100%;
+  transform: rotate(-90deg);
+}
+.score-ring-bg {
+  fill: none;
+  stroke: $border-light;
+  stroke-width: 6;
+}
+.score-ring-fill {
+  fill: none;
+  stroke: $primary;
+  stroke-width: 6;
+  stroke-linecap: butt;
+  transition: stroke-dasharray 1.2s ease, stroke 0.4s ease;
+}
+.score-ring-center {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+}
+.score-ring-num {
+  font-family: $ff-serif;
+  font-size: $font-4xl;
+  font-weight: 700;
+  color: $primary;
+  line-height: 1;
+  font-feature-settings: "tnum";
+}
+.score-ring-label {
+  font-size: $font-sm;
+  color: $text-sub;
+  letter-spacing: 4rpx;
+  margin-top: 4rpx;
+}
+
+/* ===== 通用免责 ===== */
+.text-disclaimer {
+  font-size: $font-xs;
+  color: $text-weak;
+  text-align: center;
+  line-height: 1.8;
+  letter-spacing: 0.5rpx;
+}

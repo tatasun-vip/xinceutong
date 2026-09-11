@@ -1,0 +1,163 @@
+{
+  "easycom": {
+    "autoscan": false,
+    "custom": {
+      "^uni-(.*)": "@dcloudio/uni-ui/lib/uni-$1/uni-$1.vue"
+    }
+  },
+  "pages": [
+    {
+      "path": "pages/index/index",
+      "style": {
+        "navigationBarTitleText": "信测通",
+        "navigationBarBackgroundColor": "#1B3A6B",
+        "navigationBarTextStyle": "white",
+        "backgroundColor": "#F5F6FA"
+      }
+    },
+    {
+      "path": "pages/launch/index",
+      "style": { "navigationBarTitleText": "", "navigationStyle": "custom", "backgroundColor": "#1B3A6B" }
+    },
+    {
+      "path": "pages/about/methodology",
+      "style": { "navigationBarTitleText": "我们的模型", "backgroundColor": "#F5F6FA" }
+    },
+    {
+      "path": "pages/about/products",
+      "style": { "navigationBarTitleText": "6 大产品类型", "backgroundColor": "#F5F6FA" }
+    },
+    {
+      "path": "pages/promote/materials",
+      "style": { "navigationBarTitleText": "推广素材库", "backgroundColor": "#F5F6FA" }
+    },
+    {
+      "path": "pages/assess/type",
+      "style": { "navigationBarTitleText": "选择测评类型", "backgroundColor": "#F5F6FA" }
+    },
+    {
+      "path": "pages/assess/select-bank",
+      "style": { "navigationBarTitleText": "选择目标银行", "backgroundColor": "#F5F6FA" }
+    },
+    {
+      "path": "pages/assess/select-product",
+      "style": { "navigationBarTitleText": "选择目标产品", "backgroundColor": "#F5F6FA" }
+    },
+    {
+      "path": "pages/assess/step1-basic",
+      "style": { "navigationBarTitleText": "基础信息", "backgroundColor": "#F5F6FA" }
+    },
+    {
+      "path": "pages/assess/step2-career",
+      "style": { "navigationBarTitleText": "职业与收入", "backgroundColor": "#F5F6FA" }
+    },
+    {
+      "path": "pages/assess/step1b-business",
+      "style": { "navigationBarTitleText": "企业信息", "backgroundColor": "#F5F6FA" }
+    },
+    {
+      "path": "pages/assess/step3-asset",
+      "style": { "navigationBarTitleText": "资产情况", "backgroundColor": "#F5F6FA" }
+    },
+    {
+      "path": "pages/assess/step4-credit",
+      "style": { "navigationBarTitleText": "负债与征信", "backgroundColor": "#F5F6FA" }
+    },
+    {
+      "path": "pages/assess/step5-confirm",
+      "style": { "navigationBarTitleText": "确认提交", "backgroundColor": "#F5F6FA" }
+    },
+    {
+      "path": "pages/assess/loading",
+      "style": { "navigationBarTitleText": "评估中", "backgroundColor": "#1B3A6B", "navigationBarTextStyle": "white" }
+    },
+    {
+      "path": "pages/result/free",
+      "style": { "navigationBarTitleText": "免费结果", "backgroundColor": "#F5F6FA" }
+    },
+    {
+      "path": "pages/result/pay",
+      "style": { "navigationBarTitleText": "解锁完整报告", "backgroundColor": "#F5F6FA" }
+    },
+    {
+      "path": "pages/result/report",
+      "style": { "navigationBarTitleText": "完整报告", "backgroundColor": "#F5F6FA" }
+    },
+    {
+      "path": "pages/share/index",
+      "style": { "navigationBarTitleText": "分享给好友", "backgroundColor": "#F5F6FA" }
+    },
+    {
+      "path": "pages/mine/index",
+      "style": { "navigationBarTitleText": "我的", "backgroundColor": "#F5F6FA" }
+    },
+    {
+      "path": "pages/mine/history",
+      "style": { "navigationBarTitleText": "测评历史", "navigationStyle": "custom", "backgroundColor": "#F5F6FA" }
+    },
+    {
+      "path": "pages/promoter/login",
+      "style": { "navigationBarTitleText": "推广员入驻", "backgroundColor": "#F5F6FA" }
+    },
+    {
+      "path": "pages/promoter/dashboard",
+      "style": { "navigationBarTitleText": "推广员工作台", "backgroundColor": "#F5F6FA" }
+    },
+    {
+      "path": "pages/promoter/tools",
+      "style": { "navigationBarTitleText": "推广工具", "backgroundColor": "#F5F6FA" }
+    },
+    {
+      "path": "pages/promoter/price",
+      "style": { "navigationBarTitleText": "价格设置", "backgroundColor": "#F5F6FA" }
+    },
+    {
+      "path": "pages/promoter/customers",
+      "style": { "navigationBarTitleText": "客户列表", "backgroundColor": "#F5F6FA" }
+    },
+    {
+      "path": "pages/promoter/customer-detail",
+      "style": { "navigationBarTitleText": "客户详情", "backgroundColor": "#F5F6FA" }
+    },
+    {
+      "path": "pages/promoter/commission",
+      "style": { "navigationBarTitleText": "分佣明细", "backgroundColor": "#F5F6FA" }
+    },
+    {
+      "path": "pages/promoter/withdraw",
+      "style": { "navigationBarTitleText": "提现申请", "backgroundColor": "#F5F6FA" }
+    },
+    {
+      "path": "pages/legal/index",
+      "style": { "navigationBarTitleText": "法务助理", "backgroundColor": "#F5F6FA" }
+    },
+    {
+      "path": "pages/legal/chat",
+      "style": { "navigationBarTitleText": "法务咨询", "backgroundColor": "#F5F6FA" }
+    }
+  ],
+  "globalStyle": {
+    "navigationBarTextStyle": "white",
+    "navigationBarTitleText": "信测通",
+    "navigationBarBackgroundColor": "#1B3A6B",
+    "backgroundColor": "#F5F6FA",
+    "backgroundTextStyle": "light"
+  },
+  "tabBar": {
+    "color": "#999999",
+    "selectedColor": "#1B3A6B",
+    "backgroundColor": "#FFFFFF",
+    "borderStyle": "white",
+    "list": [
+      { "pagePath": "pages/index/index",     "text": "首页" },
+      { "pagePath": "pages/assess/type",     "text": "测评" },
+      { "pagePath": "pages/mine/index",      "text": "我的" }
+    ]
+  },
+  "condition": {
+    "current": 0,
+    "list": [
+      { "name": "首页", "path": "pages/index/index" }
+    ]
+  }
+}

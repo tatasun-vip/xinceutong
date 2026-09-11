@@ -1,0 +1,50 @@
+# ============ Python / 后端 ============
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+*.db
+*.sqlite
+*.sqlite3
+
+# ============ Node / 前端 ============
+node_modules/
+dist/
+unpackage/
+.cache/
+.npm/
+yarn-error.log
+yarn.lock
+
+# ============ 日志 / 临时 ============
+logs/
+*.log
+.env
+.env.local
+.env.*.local
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+
+# ============ 部署产物 ============
+deploy-*.zip
+deploy-*.tar.gz
+*.zip
+*.tar.gz
+backup/
+
+# ============ 测试 / 覆盖率 ============
+htmlcov/
+.coverage
+.pytest_cache/
+.tox/
+.mypy_cache/
+.ruff_cache/
+
+# ============ 文档构建 ============
+docs/_build/
+site/
+.vercel
+.env*

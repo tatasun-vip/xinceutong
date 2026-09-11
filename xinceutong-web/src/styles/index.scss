@@ -1,0 +1,306 @@
+@use "./variables.scss" as *;
+
+/* ============================================================================
+ * 全局 reset
+ * ============================================================================ */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html, body {
+  margin: 0;
+  padding: 0;
+  font-family: $ff-base;
+  font-size: $font-base;
+  color: $text-main;
+  background: $bg;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  line-height: 1.6;
+}
+
+#app {
+  min-height: 100vh;
+}
+
+a {
+  color: $primary;
+  text-decoration: none;
+  transition: color 0.2s;
+  &:hover { color: $accent-dark; }
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: $ff-serif;
+  color: $primary;
+  margin: 0;
+  line-height: 1.3;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+}
+
+p { margin: 0; }
+
+button {
+  font-family: $ff-base;
+  cursor: pointer;
+}
+
+/* ============================================================================
+ * 通用工具类
+ * ============================================================================ */
+.text-serif     { font-family: $ff-serif; }
+.text-mono      { font-family: $ff-mono; letter-spacing: 1px; }
+.text-eyebrow   {
+  font-family: $ff-mono;
+  font-size: $font-xs;
+  letter-spacing: 4px;
+  color: $accent;
+  text-transform: uppercase;
+  font-weight: 500;
+}
+.text-num       {
+  font-family: $ff-serif;
+  font-feature-settings: "tnum";
+}
+.text-weak      { color: $text-weak; }
+.text-secondary { color: $text-secondary; }
+.text-main      { color: $text-main; }
+.text-accent    { color: $accent; }
+.text-primary   { color: $primary; }
+
+.divider-line {
+  width: 48px;
+  height: 2px;
+  background: $accent;
+  margin: $space-3 0;
+}
+
+.container {
+  max-width: $content-max-width;
+  margin: 0 auto;
+  padding: 0 $content-padding;
+}
+
+.section {
+  padding: $space-16 0;
+}
+
+/* ============================================================================
+ * 覆盖 Element Plus 主题（更克制的金融风）
+ * ============================================================================ */
+:root {
+  --el-color-primary: #{$primary};
+  --el-color-primary-light-3: #1A3A5F;
+  --el-color-primary-light-5: #2B4F77;
+  --el-color-primary-light-7: #5C7FA0;
+  --el-color-primary-light-8: #8AA3BD;
+  --el-color-primary-light-9: #B8C9D9;
+  --el-color-primary-dark-2: #{$primary-dark};
+
+  --el-color-success: #{$success};
+  --el-color-warning: #{$warning};
+  --el-color-danger:  #{$danger};
+  --el-color-info:    #{$info};
+
+  --el-text-color-primary:   #{$text-main};
+  --el-text-color-regular:   #{$text-regular};
+  --el-text-color-secondary: #{$text-secondary};
+  --el-text-color-placeholder: #{$text-weak};
+
+  --el-border-color:        #{$border-light};
+  --el-border-color-light:  #{$border-light};
+  --el-border-color-lighter: #EAEEF3;
+  --el-border-radius-base: 4px;
+
+  --el-font-family: $ff-base;
+}
+
+/* Element Plus 按钮更克制 */
+.el-button {
+  font-weight: 500;
+  letter-spacing: 0.5px;
+  border-radius: $radius;
+}
+.el-button--primary {
+  background: $primary;
+  border-color: $primary;
+  &:hover, &:focus {
+    background: $primary-light;
+    border-color: $primary-light;
+  }
+}
+.el-button--default {
+  border-color: $border-regular;
+  color: $text-regular;
+  &:hover {
+    color: $primary;
+    border-color: $primary;
+    background: $primary-tint;
+  }
+}
+
+/* ============================================================================
+ * 自定义金质 CTA 按钮 — 高转化主按钮
+ * .btn-cta              → 标准（桌面端主转化）
+ * .btn-cta--lg          → 大号（Hero 主）
+ * .btn-cta--block       → 块级（移动端）
+ * .btn-cta--ghost       → 透明描边（次要）
+ * ============================================================================ */
+.btn-cta {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 12px 24px;
+  font-family: $ff-base;
+  font-size: $font-md;
+  font-weight: 600;
+  letter-spacing: 1px;
+  color: $text-on-accent;
+  background: $gradient-gold;
+  border: 1px solid $cta-gold-3;
+  border-radius: $radius;
+  cursor: pointer;
+  position: relative;
+  overflow: hidden;
+  transition: transform $dur-fast $ease-out, box-shadow $dur-fast $ease-out, background $dur-fast $ease-out;
+  box-shadow: $cta-shadow;
+  text-decoration: none;
+  user-select: none;
+  white-space: nowrap;
+
+  /* 光泽扫过效果 */
+  &::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -120%;
+    width: 60%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent 0%, rgba(255, 255, 255, 0.4) 50%, transparent 100%);
+    transform: skewX(-20deg);
+    transition: left $dur-slow $ease-out;
+  }
+
+  &:hover {
+    background: $gradient-gold-h;
+    transform: translateY(-2px);
+    box-shadow: $cta-shadow-hover;
+    &::before { left: 130%; }
+  }
+
+  &:active {
+    transform: translateY(0);
+    box-shadow: $cta-shadow;
+  }
+
+  &__arrow {
+    display: inline-block;
+    transition: transform $dur-fast $ease-out;
+  }
+
+  &:hover &__arrow {
+    transform: translateX(4px);
+  }
+}
+
+.btn-cta--lg {
+  padding: 18px 36px;
+  font-size: $font-lg;
+  letter-spacing: 2px;
+  border-radius: $radius;
+}
+
+.btn-cta--xl {
+  padding: 22px 48px;
+  font-size: $font-xl;
+  letter-spacing: 3px;
+  border-radius: $radius;
+}
+
+.btn-cta--block {
+  display: flex;
+  width: 100%;
+  padding: 16px 24px;
+}
+
+.btn-cta--ghost {
+  background: transparent;
+  color: $accent;
+  border: 1px solid $border-gold;
+  box-shadow: none;
+
+  &::before { display: none; }
+
+  &:hover {
+    background: $accent-bg;
+    color: $accent-dark;
+    border-color: $accent;
+    transform: translateY(-2px);
+    box-shadow: $shadow-gold;
+  }
+}
+
+/* 深蓝次按钮（与金质形成对比） */
+.btn-secondary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 12px 24px;
+  font-size: $font-md;
+  font-weight: 500;
+  letter-spacing: 1px;
+  color: $primary;
+  background: $white;
+  border: 1px solid $border-regular;
+  border-radius: $radius;
+  cursor: pointer;
+  transition: all $dur-fast $ease-out;
+  text-decoration: none;
+
+  &:hover {
+    color: $primary;
+    border-color: $primary;
+    background: $primary-tint;
+  }
+}
+
+/* 输入框 */
+.el-input__wrapper, .el-textarea__inner {
+  border-radius: $radius;
+  box-shadow: 0 0 0 1px $border-light inset;
+  &:hover { box-shadow: 0 0 0 1px $border-regular inset; }
+  &.is-focus { box-shadow: 0 0 0 1px $primary inset; }
+}
+
+/* 卡片 */
+.el-card {
+  border-radius: $radius;
+  border: 1px solid $border-light;
+  box-shadow: $shadow-sm;
+}
+
+/* Radio / Checkbox */
+.el-radio__input.is-checked .el-radio__inner {
+  background: $primary;
+  border-color: $primary;
+}
+.el-radio__input.is-checked + .el-radio__label {
+  color: $primary;
+}
+
+/* 滚动条 */
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-track { background: $bg; }
+::-webkit-scrollbar-thumb { background: $border-regular; border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: $border-strong; }
+
+/* 选区 */
+::selection {
+  background: $accent-light;
+  color: $primary-dark;
+}

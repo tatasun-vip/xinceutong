@@ -1,0 +1,25 @@
+# 依赖
+node_modules/
+unpackage/
+dist/
+
+# IDE
+.idea/
+.vscode/
+.hbuilderx/
+
+# 日志
+*.log
+npm-debug.log*
+
+# 系统
+.DS_Store
+Thumbs.db
+
+# 环境变量（仅 commit .env.example）
+.env
+.env.local
+.env.*.local
+
+# TypeScript
+*.tsbuildinfo

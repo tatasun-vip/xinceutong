@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta
+      name="viewport"
+      content="width=device-width,initial-scale=1.0,maximum-scale=1.0,minimum-scale=1.0,user-scalable=no,viewport-fit=cover"
+    />
+    <title>信测通 — 信用评分</title>
+    <script>
+      var coverSupport =
+        'CSS' in window &&
+        typeof CSS.supports === 'function' &&
+        (CSS.supports('top: env(a)') || CSS.supports('top: constant(a)'))
+      document.write(
+        '<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,minimum-scale=1.0,user-scalable=no' +
+          (coverSupport ? ',viewport-fit=cover' : '') +
+          '"/>',
+      )
+    </script>
+    <style>
+      /* ====== 锁死页面，禁止左右晃、橡皮筋、缩放 ====== */
+      html, body {
+        width: 100%;
+        max-width: 100vw;
+        height: 100%;
+        margin: 0;
+        padding: 0;
+        overflow-x: hidden;
+        overflow-y: auto;
+        -webkit-overflow-scrolling: touch;
+        overscroll-behavior: none;
+        overscroll-behavior-x: contain;
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        -webkit-user-select: none;
+        -webkit-tap-highlight-color: transparent;
+        -webkit-touch-callout: none;
+      }
+      /* #app 自己管理滚动，body 用 fixed 锁住 */
+      #app {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        width: 100%;
+        height: 100%;
+        overflow: auto;
+        overflow-x: hidden;
+        -webkit-overflow-scrolling: touch;
+        overscroll-behavior: none;
+        -webkit-overflow-scrolling: touch;
+      }
+      /* uni-app 页面容器不超出视口 */
+      uni-app, uni-page, uni-page-wrapper, uni-page-body {
+        max-width: 100vw !important;
+        overflow-x: hidden !important;
+        box-sizing: border-box;
+      }
+      /* 防止 textarea/input 触发 iOS 缩放导致页面晃动 */
+      input, textarea, select {
+        font-size: 16px !important;
+      }
+      /* 禁止 100vw 导致溢出（用 100% 替代）
+         警告：不能写 "body *" 这种通配，
+         否则会影响 textarea/scroll-view/button 等内部元素，触发页面重排
+         改用精确选择器 */
+      body > div,
+      uni-app, uni-page, uni-page-wrapper, uni-page-body,
+      .uni-page-wrapper, .uni-page-body {
+        max-width: 100vw;
+        overflow-x: hidden;
+        box-sizing: border-box;
+      }
+    </style>
+  </head>
+  <body>
+    <noscript>
+      <strong>信测通需要启用 JavaScript 才能运行。</strong>
+    </noscript>
+    <div id="app"></div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

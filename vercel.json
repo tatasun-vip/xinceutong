@@ -19,11 +19,7 @@
     }
   ],
   "routes": [
-    { "src": "^/api/(.*)$", "dest": "api/index.py" },
-    { "src": "^/static/(.*)$", "dest": "xinceutong-miniapp/unpackage/dist/build/h5/static/$1" },
-    { "src": "^/assets/(.*)$", "dest": "xinceutong-miniapp/unpackage/dist/build/h5/assets/$1" },
-    { "src": "^/(.*\\.(js|css|html|ico|png|jpg|jpeg|svg|gif|woff|woff2|ttf|eot|map|json|webp|avif))$", "dest": "xinceutong-miniapp/unpackage/dist/build/h5/$1" },
-    { "src": "^/(.*)$", "dest": "xinceutong-miniapp/unpackage/dist/build/h5/index.html" }
+    { "src": "^/api/(.*)$", "dest": "api/index.py" }
   ],
   "env": {
     "ENV": "production",

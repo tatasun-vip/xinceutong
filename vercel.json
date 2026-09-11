@@ -8,14 +8,6 @@
         "maxLambdaSize": "50mb",
         "runtime": "python3.11"
       }
-    },
-    {
-      "src": "xinceutong-miniapp/package.json",
-      "use": "@vercel/static-build",
-      "config": {
-        "buildCommand": "VITE_API_BASE_URL=https://www.trumpdream.site npm install --no-audit --no-fund && npx uni build -p h5",
-        "outputDirectory": "unpackage/dist/build/h5"
-      }
     }
   ],
   "routes": [

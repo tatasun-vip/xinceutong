@@ -1,5 +1,6 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
+  "framework": "vite",
   "buildCommand": "npm --prefix xinceutong-web install && npm --prefix xinceutong-web run build",
   "outputDirectory": "xinceutong-web/dist",
   "rewrites": [

@@ -1,17 +1,6 @@
 {
-  "$schema": "https://openapi.vercel.sh/vercel.json",
-  "buildCommand": "npm --prefix xinceutong-web install && npm --prefix xinceutong-web run build",
-  "outputDirectory": "xinceutong-web/dist",
   "rewrites": [
     { "source": "/api/(.*)", "destination": "/api/index.py" },
     { "source": "/(.*)", "destination": "/index.html" }
-  ],
-  "env": {
-    "ENV": "production",
-    "DEBUG": "false",
-    "REDIS_DISABLED": "1",
-    "CORS_ORIGINS": "[\"*\"]",
-    "ASSESSMENT_BASE_PRICE": "9.99",
-    "FREE_TRIAL_PER_USER": "1"
-  }
+  ]
 }

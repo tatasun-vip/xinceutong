@@ -3,8 +3,8 @@
   "buildCommand": "npm --prefix xinceutong-web install && npm --prefix xinceutong-web run build",
   "outputDirectory": "xinceutong-web/dist",
   "rewrites": [
-    { "source": "/(.*)", "destination": "/index.html" },
-    { "source": "/api/(.*)", "destination": "/api/index.py" }
+    { "source": "/api/(.*)", "destination": "/api/index.py" },
+    { "source": "/(.*)", "destination": "/index.html" }
   ],
   "env": {
     "ENV": "production",

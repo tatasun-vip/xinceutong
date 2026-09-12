@@ -1,8 +1,7 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "framework": "vite",
-  "buildCommand": "npm install && npm run build",
-  "outputDirectory": "dist",
+  "buildCommand": "npm --prefix xinceutong-web install && npm --prefix xinceutong-web run build",
+  "outputDirectory": "xinceutong-web/dist",
   "rewrites": [
     { "source": "/(.*)", "destination": "/index.html" },
     { "source": "/api/(.*)", "destination": "/api/index.py" }

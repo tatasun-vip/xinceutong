@@ -13,16 +13,16 @@
     "@element-plus/icons-vue": "^2.3.1",
     "pinia": "^2.2.2",
     "vue": "^3.5.10",
-    "vue-router": "^4.4.5"
+    "vue-router": "^4.4.5",
+    "vite": "^5.4.8",
+    "@vitejs/plugin-vue": "^5.1.4",
+    "sass": "^1.79.4"
   },
   "devDependencies": {
     "@types/node": "^22.7.5",
-    "@vitejs/plugin-vue": "^5.1.4",
-    "sass": "^1.79.4",
     "typescript": "^5.6.2",
     "unplugin-auto-import": "^0.18.3",
     "unplugin-vue-components": "^0.27.4",
-    "vite": "^5.4.8",
     "vue-tsc": "^2.1.6"
   }
 }

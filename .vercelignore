@@ -15,8 +15,3 @@ node_modules/
 deploy-report-*.md
 verify-report-*.md
 report-*.md
-DEPLOY.md
-VERCEL_DEPLOY.md
-render.yaml
-xinceutong-web/
-scripts/

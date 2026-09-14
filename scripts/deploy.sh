@@ -2,7 +2,7 @@
 ###############################################################################
 # 信测通 - 一键部署助手
 # 用法：
-#   1. 解压 xinceutong-deploy.zip 后进入 xinceutong-deploy/ 目录
+#   1. 解压 xincetong-deploy.zip 后进入 xincetong-deploy/ 目录
 #   2. 编辑本文件，填入 GITHUB_USER / REPO_NAME / GITHUB_TOKEN
 #   3. 运行：bash scripts/deploy.sh
 ###############################################################################
@@ -11,7 +11,7 @@ set -e
 
 # ============ 在此填入你的 GitHub 信息 ============
 GITHUB_USER=""        # 例如：suntata
-REPO_NAME=""          # 例如：xinceutong
+REPO_NAME=""          # 例如：xincetong
 GITHUB_TOKEN=""       # https://github.com/settings/tokens （需要 repo 权限）
 # ==============================================
 
@@ -24,8 +24,8 @@ fi
 echo "==== 1. 初始化 git 仓库 ===="
 if [ ! -d ".git" ]; then
   git init
-  git config user.email "deploy@xinceutong.local"
-  git config user.name "xinceutong-deploy"
+  git config user.email "deploy@xincetong.local"
+  git config user.name "xincetong-deploy"
 fi
 
 echo "==== 2. 添加并提交所有文件 ===="
@@ -50,6 +50,6 @@ echo "  3. 选 ${GITHUB_USER}/${REPO_NAME} 仓库"
 echo "  4. 点 Apply，等 5-8 分钟"
 echo ""
 echo "==== 部署完后会拿到 2 个 URL ===="
-echo "  后端 API: https://xinceutong-api.onrender.com"
-echo "  前端 H5:  https://xinceutong-web.onrender.com"
+echo "  后端 API: https://xincetong-api.onrender.com"
+echo "  前端 H5:  https://xincetong-web.onrender.com"
 echo "============================================="

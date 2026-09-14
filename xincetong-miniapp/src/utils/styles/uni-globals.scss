@@ -1,0 +1,140 @@
+/* utils/styles/uni-globals.scss
+ * 复制 uni.scss 的所有变量，供 .scss 文件 import
+ * （vite-plugin-uni 不会自动注入 uni.scss 变量给 .scss）
+ */
+
+$font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", "Hiragino Sans GB", sans-serif;
+$font-serif:  $font-family;
+$font-mono:   $font-family;
+
+$ff-base:  $font-family;
+$ff-serif: $font-serif;
+$ff-mono:  $font-mono;
+
+$primary:       #0B2545;
+$primary-2:     #13315C;
+$primary-light: #EBF1F8;
+$primary-tint:  #F5F7FA;
+$primary-dark:  #061A33;
+$primary-line:  #D6DEE9;
+
+$accent:        #B89554;
+$accent-light:  #FAF3E3;
+$accent-dark:   #8C6F36;
+
+$success:       #2C7A4B;
+$warning:       #B25E00;
+$danger:        #9B2226;
+$info:          $primary-2;
+
+$text-main:     #1A1A1A;
+$text-sub:      #5A6473;
+$text-weak:     #94A0B0;
+$text-white:    #FFFFFF;
+
+$bg:            #FAFAF7;
+$bg-2:          #F2F4F7;
+$card:          #FFFFFF;
+$border:        #DDE2EA;
+$border-light:  #ECEFF4;
+
+$radius-card:   8rpx;
+$radius-btn:    4rpx;
+$radius-tag:    4rpx;
+$radius-pill:   9999rpx;
+
+$btn-height:    96rpx;
+$btn-height-sm: 72rpx;
+
+$font-xs:   22rpx;
+$font-sm:   26rpx;
+$font-md:   30rpx;
+$font-lg:   32rpx;
+$font-xl:   36rpx;
+$font-2xl:  44rpx;
+$font-3xl:  56rpx;
+$font-4xl:  72rpx;
+
+$space-1: 8rpx;
+$space-2: 16rpx;
+$space-3: 24rpx;
+$space-4: 32rpx;
+$space-5: 48rpx;
+$space-6: 64rpx;
+
+$shadow-card:  0 1rpx 0 rgba(11, 37, 69, 0.04);
+$shadow-hover: 0 2rpx 8rpx rgba(11, 37, 69, 0.08);
+
+
+// ============================================================================
+// v9 增量：6 大产品独立品牌色 + icon（A2 深度证据链设计）
+// 设计原则：每产品一个独立色 + 浅色背景 + icon emoji，让 6 卡一眼看出区别
+// ============================================================================
+
+// 1. 优质单位贷（公务员/事业/国企/央企 → 庄重蓝）
+$pc-qu-color:       #2563EB;
+$pc-qu-bg:          #EBF3FF;
+$pc-qu-text:        #1E3A8A;
+$pc-qu-icon:        "🏛️";
+
+// 2. 公积金贷（连续缴存 → 紫色稳重）
+$pc-hf-color:       #9333EA;
+$pc-hf-bg:          #F3E8FF;
+$pc-hf-text:        #6B21A8;
+$pc-hf-icon:        "💎";
+
+// 3. 工薪贷（上班族 → 活力橙）
+$pc-sa-color:       #EA580C;
+$pc-sa-bg:          #FFF1E6;
+$pc-sa-text:        #9A3412;
+$pc-sa-icon:        "💼";
+
+// 4. 有房客户贷（房产 → 红色高价值）
+$pc-ho-color:       #DC2626;
+$pc-ho-bg:          #FEE7E7;
+$pc-ho-text:        #991B1B;
+$pc-ho-icon:        "🏠";
+
+// 5. 纳税贷（小微经营 → 财富金，复用 $accent 体系）
+$pc-tx-color:       #B89554;
+$pc-tx-bg:          #FAF3E3;
+$pc-tx-text:        #8C6F36;
+$pc-tx-icon:        "🧾";
+
+// 6. 开票贷（开票流水 → 青色稳定）
+$pc-in-color:       #0891B2;
+$pc-in-bg:          #E0F4F8;
+$pc-in-text:        #155E75;
+$pc-in-icon:        "📊";
+
+// 6 产品 SCSS map（v-for 用：scss 没法 map.get 但可在 .vue 模板里 inline 引用）
+// 注：vue 模板不直接用 SCSS map，所以也导出一个 JS 字典在 productConfig.ts
+// SCSS 端只做 6 套变量供 .scss 块内部使用
+$pc-colors: (
+  "quality_unit":  ("color": $pc-qu-color, "bg": $pc-qu-bg, "text": $pc-qu-text, "icon": $pc-qu-icon),
+  "housing_fund":  ("color": $pc-hf-color, "bg": $pc-hf-bg, "text": $pc-hf-text, "icon": $pc-hf-icon),
+  "salary":        ("color": $pc-sa-color, "bg": $pc-sa-bg, "text": $pc-sa-text, "icon": $pc-sa-icon),
+  "house_owner":   ("color": $pc-ho-color, "bg": $pc-ho-bg, "text": $pc-ho-text, "icon": $pc-ho-icon),
+  "tax":           ("color": $pc-tx-color, "bg": $pc-tx-bg, "text": $pc-tx-text, "icon": $pc-tx-icon),
+  "invoice":       ("color": $pc-in-color, "bg": $pc-in-bg, "text": $pc-in-text, "icon": $pc-in-icon),
+);
+
+// 等级颜色（评分等级 S/A/B/C/D/E，6 卡共享）
+$lvl-S-color:   #B89554;   // 金
+$lvl-S-bg:      #FAF3E3;
+$lvl-A-color:   #2C7A4B;   // 绿
+$lvl-A-bg:      #E5F2EB;
+$lvl-B-color:   #2563EB;   // 蓝
+$lvl-B-bg:      #EBF3FF;
+$lvl-C-color:   #B25E00;   // 橙
+$lvl-C-bg:      #FFF1E0;
+$lvl-D-color:   #9B2226;   // 红
+$lvl-D-bg:      #FCE7E7;
+$lvl-E-color:   #5A6473;   // 灰
+$lvl-E-bg:      #ECEFF4;
+
+// 付费墙色（解锁按钮 + 模糊遮罩）
+$paywall-gold:  #B89554;
+$paywall-gold-bg: #FAF3E3;
+$paywall-gold-dark: #8C6F36;
+$paywall-lock-color: #5A6473;

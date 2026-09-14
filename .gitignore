@@ -1,4 +1,4 @@
-# ============ Python / 后端 ============
+# ============== Python / 后端 ==============
 __pycache__/
 *.py[cod]
 *.egg-info/
@@ -8,7 +8,7 @@ venv/
 *.sqlite
 *.sqlite3
 
-# ============ Node / 前端 ============
+# ============== Node / 前端 ==============
 node_modules/
 dist/
 unpackage/
@@ -17,7 +17,7 @@ unpackage/
 yarn-error.log
 yarn.lock
 
-# ============ 日志 / 临时 ============
+# ============== 日志 / 临时 ==============
 logs/
 *.log
 .env
@@ -28,14 +28,14 @@ Thumbs.db
 .idea/
 .vscode/
 
-# ============ 部署产物 ============
+# ============== 部署产物 ==============
 deploy-*.zip
 deploy-*.tar.gz
 *.zip
 *.tar.gz
 backup/
 
-# ============ 测试 / 覆盖率 ============
+# ============== 测试 / 覆盖率 ==============
 htmlcov/
 .coverage
 .pytest_cache/
@@ -43,9 +43,13 @@ htmlcov/
 .mypy_cache/
 .ruff_cache/
 
-# ============ 文档构建 ============
+# ============== 文档构建 ==============
 docs/_build/
 site/
-.vercel
-.env*
+.vercel/
 .codebuddy/
+
+# ============== 本地缓存 ==============
+.vite/
+.legacy-config/
+generated-images/

@@ -1,0 +1,81 @@
+# ============ 信测通后端 docker-compose ============
+# 一键拉起：MySQL 8.0 + Redis 7 + FastAPI 后端
+# 用法：
+#   1. cp .env.example .env，按需修改
+#   2. docker compose up -d
+#   3. 顺序执行 3 个初始化脚本（v3: 6 大产品独立建模）：
+#      docker compose exec api python scripts/init_product_types.py
+#      docker compose exec api python scripts/init_site_config.py
+#      docker compose exec api python scripts/init_scorecard.py
+
+version: "3.9"
+
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: xincetong-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_PASSWORD:-xincetong}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-xincetong}
+      MYSQL_USER: ${MYSQL_USER:-xincetong}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-xincetong}
+      TZ: Asia/Shanghai
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+      - --default-authentication-plugin=mysql_native_password
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./sql/init.sql:/docker-entrypoint-initdb.d/00_init.sql:ro
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-uroot", "-p${MYSQL_PASSWORD:-xincetong}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: xincetong-redis
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes"]
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  api:
+    build: .
+    container_name: xincetong-api
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      # 容器内连同网络的 MySQL/Redis
+      MYSQL_HOST: mysql
+      REDIS_HOST: redis
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./logs:/app/logs
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:8000/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+volumes:
+  mysql_data:
+  redis_data:

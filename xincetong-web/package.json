@@ -1,0 +1,28 @@
+{
+  "name": "xincetong-web",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": "24.x"
+  },
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview --port 8081"
+  },
+  "dependencies": {
+    "element-plus": "^2.8.4",
+    "@element-plus/icons-vue": "^2.3.1",
+    "pinia": "^2.2.2",
+    "vue": "^3.5.10",
+    "vue-router": "^4.4.5",
+    "vite": "^5.4.8",
+    "@vitejs/plugin-vue": "^5.1.4",
+    "sass": "^1.79.4"
+  },
+  "devDependencies": {
+    "unplugin-auto-import": "^0.18.3",
+    "unplugin-vue-components": "^0.27.4"
+  }
+}

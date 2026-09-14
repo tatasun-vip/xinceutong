@@ -186,14 +186,14 @@ $ python -m pytest tests/test_scorecard.py
 ```bash
 # 1. 本地提交
 cd /Users/suntata/CodeBuddy/20260907155240
-git add xinceutong-server/app/services/product_engine.py
+git add xincetong-server/app/services/product_engine.py
 git commit -m "v10: tax/invoice 兜底逻辑（个人流程下不再永远 0）"
 
 # 2. 推 GitHub
 git push
 
 # 3. 触发 Vercel 自动部署
-# 或：cd xinceutong-web && npx vercel deploy --prod --yes
+# 或：cd xincetong-web && npx vercel deploy --prod --yes
 ```
 
 ### 5.2 验证线上 API

@@ -6,8 +6,8 @@
 
 ```
 20260907155240/
-├── xinceutong-server/         # 后端（FastAPI + MySQL + Redis）
-└── xinceutong-miniapp/        # 小程序端（UniApp Vue3 + TypeScript）
+├── xincetong-server/         # 后端（FastAPI + MySQL + Redis）
+└── xincetong-miniapp/        # 小程序端（UniApp Vue3 + TypeScript）
 ```
 
 ## 角色
@@ -60,7 +60,7 @@
 ### 后端
 
 ```bash
-cd xinceutong-server
+cd xincetong-server
 cp .env.example .env
 docker compose up -d --build
 docker compose exec api python scripts/init_scorecard.py
@@ -72,7 +72,7 @@ curl http://localhost:8000/
 ### 小程序（UniApp）
 
 ```bash
-cd xinceutong-miniapp
+cd xincetong-miniapp
 npm install
 npm run dev:mp-weixin
 # 微信开发者工具 → 导入 unpackage/dist/dev/mp-weixin

@@ -1,0 +1,82 @@
+/**
+ * uni.scss - 全局 SCSS 变量（自动注入）
+ * 信测通 — 金融合规类严肃风
+ */
+
+/* ===== 字体（E1+F1+G1：完全统一 -apple-system，H/I 自动跟随去除衬线/等宽） ===== */
+$font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", "Hiragino Sans GB", sans-serif;
+$font-serif:  $font-family;
+$font-mono:   $font-family;
+
+/* ===== 字体快捷变量（被 common.scss / assess.scss 引用） ===== */
+$ff-base:  $font-family;
+$ff-serif: $font-serif;
+$ff-mono:  $font-mono;
+
+/* ===== 品牌色（深海军蓝 + 金融金） ===== */
+$primary:       #0B2545;   // 主色 - 深海军蓝
+$primary-2:     #13315C;   // 次主色
+$primary-light: #EBF1F8;   // 主色亮背景
+$primary-tint:  #F5F7FA;   // 主色更淡背景
+$primary-dark:  #061A33;   // 主色暗
+$primary-line:  #D6DEE9;   // 主色细线
+
+$accent:        #B89554;   // 强调色 - 金融金
+$accent-light:  #FAF3E3;   // 强调色亮背景
+$accent-dark:   #8C6F36;   // 强调色暗
+
+/* ===== 状态色 ===== */
+$success:       #2C7A4B;   // 深绿
+$warning:       #B25E00;   // 琥珀
+$danger:        #9B2226;   // 深红
+$info:          $primary-2;
+
+/* ===== 文字 ===== */
+$text-main:     #1A1A1A;
+$text-sub:      #5A6473;
+$text-weak:     #94A0B0;
+$text-white:    #FFFFFF;
+$text-divider:  #2A3A55;   // 标题装饰
+
+/* ===== 背景 ===== */
+$bg:            #FAFAF7;   // 暖白
+$bg-2:          #F2F4F7;   // 次级背景
+$bg-page:       #FAFAF7;   // 页面背景（别名，兼容新页面引用）
+$bg-card:       #FFFFFF;   // 卡片背景（别名，兼容新页面引用）
+$card:          #FFFFFF;
+$border:        #DDE2EA;
+$border-base:   #DDE2EA;   // 基础边框色（别名，兼容新页面引用）
+$border-light:  #ECEFF4;
+
+/* ===== 圆角（更克制） ===== */
+$radius-card:   8rpx;      // 卡片：直一点更正式
+$radius-btn:    4rpx;      // 按钮：几何
+$radius-tag:    4rpx;
+$radius-pill:   9999rpx;
+
+/* ===== 按钮 ===== */
+$btn-height:    96rpx;
+$btn-height-sm: 72rpx;
+
+/* ===== 字号 ===== */
+$font-xs:   22rpx;
+$font-sm:   26rpx;
+$font-md:   30rpx;
+$font-lg:   32rpx;
+$font-xl:   36rpx;
+$font-2xl:  44rpx;
+$font-3xl:  56rpx;
+$font-4xl:  72rpx;   // 评分大数字
+
+/* ===== 间距（8 倍数） ===== */
+$space-1: 8rpx;
+$space-2: 16rpx;
+$space-3: 24rpx;
+$space-4: 32rpx;
+$space-5: 48rpx;
+$space-6: 64rpx;
+
+/* ===== 阴影（极克制） ===== */
+$shadow-card:  0 1rpx 0 rgba(11, 37, 69, 0.04);
+$shadow-hover: 0 2rpx 8rpx rgba(11, 37, 69, 0.08);
+$shadow-line:  0 -1rpx 0 $border-light;  // 顶部分隔线

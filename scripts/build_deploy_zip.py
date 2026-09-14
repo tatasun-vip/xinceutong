@@ -2,9 +2,9 @@
 信测通 v5 P0 部署打包脚本（纯 stdlib，不依赖 fastapi/sqlalchemy）
 
 打包内容：
-  - xinceutong-server/  （后端，排除 .env / __pycache__ / *.db / .venv）
-  - xinceutong-miniapp/ （前端，排除 node_modules / dist / unpackage）
-  - xinceutong-web/     （Web 子项目，排除同上）
+  - xincetong-server/  （后端，排除 .env / __pycache__ / *.db / .venv）
+  - xincetong-miniapp/ （前端，排除 node_modules / dist / unpackage）
+  - xincetong-web/     （Web 子项目，排除同上）
   - sql/migrations/     （0002 迁移）
   - verify-report-2026-09-12-v5-business.md
   - DEPLOY.md / VERCEL_DEPLOY.md / README.md
@@ -21,7 +21,7 @@
   python3 scripts/build_deploy_zip.py
 
 输出：
-  ./xinceutong-v5.zip  （一般 3-5 MB）
+  ./xincetong-v5.zip  （一般 3-5 MB）
 """
 import os
 import sys
@@ -33,7 +33,7 @@ from datetime import datetime
 
 # ===== 配置 =====
 ROOT = Path("/Users/suntata/CodeBuddy/20260907155240")
-OUTPUT_ZIP = ROOT / "xinceutong-v5.zip"
+OUTPUT_ZIP = ROOT / "xincetong-v5.zip"
 TIMESTAMP_FILE = "BUILD_INFO.txt"
 
 # 排除规则（支持 glob）
@@ -68,8 +68,8 @@ EXCLUDE_PATTERNS = [
     "**/.ruff_cache/**",
     "**/*.log",
     # 旧部署包
-    "**/xinceutong-v5.zip",
-    "**/xinceutong-deploy.zip",
+    "**/xincetong-v5.zip",
+    "**/xincetong-deploy.zip",
     "**/deploy-report-*.md",
     "**/verify-report-*.md",   # 报告不进 zip（单独上 Git）
     "**/report-*.md",
@@ -77,9 +77,9 @@ EXCLUDE_PATTERNS = [
 
 # 顶层要打包的目录/文件（白名单模式，安全性更高）
 INCLUDE_TOP = [
-    "xinceutong-server",
-    "xinceutong-miniapp",
-    "xinceutong-web",
+    "xincetong-server",
+    "xincetong-miniapp",
+    "xincetong-web",
     "sql",
     "api",
     "scripts",

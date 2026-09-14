@@ -20,7 +20,7 @@ import urllib.error
 from pathlib import Path
 
 ROOT = Path("/Users/suntata/CodeBuddy/20260907155240")
-ZIP_FILE = ROOT / "xinceutong-v5.zip"
+ZIP_FILE = ROOT / "xincetong-v5.zip"
 
 # 按优先级排序的临时文件空间
 ENDPOINTS = [
@@ -82,7 +82,7 @@ def upload_catbox(file_path: Path, endpoint_url: str) -> str | None:
     req = urllib.request.Request(
         endpoint_url,
         data=body,
-        headers={"Content-Type": ct, "User-Agent": "xinceutong-deploy/1.0"},
+        headers={"Content-Type": ct, "User-Agent": "xincetong-deploy/1.0"},
         method="POST",
     )
     with urllib.request.urlopen(req, timeout=120) as resp:
@@ -97,7 +97,7 @@ def upload_0x0st(file_path: Path) -> str | None:
     req = urllib.request.Request(
         "https://0x0.st",
         data=data,
-        headers={"Content-Type": "application/octet-stream", "User-Agent": "xinceutong-deploy/1.0"},
+        headers={"Content-Type": "application/octet-stream", "User-Agent": "xincetong-deploy/1.0"},
         method="POST",
     )
     with urllib.request.urlopen(req, timeout=120) as resp:
@@ -156,32 +156,32 @@ def main():
             print("=" * 60)
             print()
             print(f"# 1. 下载部署包")
-            print(f"wget -O /opt/xinceutong-v5.zip '{url}'")
+            print(f"wget -O /opt/xincetong-v5.zip '{url}'")
             print()
             print(f"# 2. 备份旧版")
-            print(f"cd /opt && cp -r xinceutong-server xinceutong-server.v4.bak 2>/dev/null")
+            print(f"cd /opt && cp -r xincetong-server xincetong-server.v4.bak 2>/dev/null")
             print()
             print(f"# 3. 解压覆盖")
-            print(f"cd /opt && unzip -oq xinceutong-v5.zip")
+            print(f"cd /opt && unzip -oq xincetong-v5.zip")
             print()
             print(f"# 4. 安装依赖（首次部署）")
-            print(f"cd /opt/xinceutong-server && pip install -r requirements.txt")
+            print(f"cd /opt/xincetong-server && pip install -r requirements.txt")
             print()
             print(f"# 5. 数据库迁移（加 dimensions 字段）")
-            db_paths = ["/opt/xinceutong-server/server/db/salion.db", "/opt/xinceutong-server/server/db/xinceutong.db", "/opt/xinceutong-server/salion.db"]
+            db_paths = ["/opt/xincetong-server/server/db/salion.db", "/opt/xincetong-server/server/db/xincetong.db", "/opt/xincetong-server/salion.db"]
             for dbp in db_paths:
                 print(f"# 检查 DB: ls -la {dbp}")
             print(f"# 然后根据实际 DB 路径跑迁移：")
-            print(f"sqlite3 <DB路径> < /opt/xinceutong-server/sql/migrations/0002_business_dimensions.sql")
+            print(f"sqlite3 <DB路径> < /opt/xincetong-server/sql/migrations/0002_business_dimensions.sql")
             print()
             print(f"# 6. 补 v5 规则（38 条）")
-            print(f"cd /opt/xinceutong-server && python3 -m scripts.init_business_v5_rules")
+            print(f"cd /opt/xincetong-server && python3 -m scripts.init_business_v5_rules")
             print()
             print(f"# 7. 跑自检")
-            print(f"cd /opt/xinceutong-server && python3 -m scripts.selfcheck_v5")
+            print(f"cd /opt/xincetong-server && python3 -m scripts.selfcheck_v5")
             print()
             print(f"# 8. 重启服务")
-            print(f"pm2 restart xinceutong-server")
+            print(f"pm2 restart xincetong-server")
             print()
             print("=" * 60)
             return 0

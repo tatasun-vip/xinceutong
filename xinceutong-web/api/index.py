@@ -9,8 +9,16 @@ import os
 import sys
 
 # 把后端项目根加入 sys.path，让 from app.xxx import yyy 能找到
-_BACKEND_ROOT = os.path.join(os.path.dirname(__file__), "..", "xinceutong-server")
-sys.path.insert(0, os.path.abspath(_BACKEND_ROOT))
+# api/index.py 在 xinceutong-web/api/ 下，往上两级到仓库根，再加 xinceutong-server
+_BACKEND_ROOT = os.path.abspath(
+    os.path.join(os.path.dirname(__file__), "..", "..", "xinceutong-server")
+)
+# 兜底：探测仓库根（xinceutong-web 的祖父目录）
+if not os.path.isdir(_BACKEND_ROOT):
+    _BACKEND_ROOT = os.path.abspath(
+        os.path.join(os.path.dirname(__file__), "..", "xinceutong-server")
+    )
+sys.path.insert(0, _BACKEND_ROOT)
 
 # 导入 FastAPI app（顶层会触发 init_db）
 from app.main import app as _fastapi_app  # noqa: E402

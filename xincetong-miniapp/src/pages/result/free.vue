@@ -36,15 +36,18 @@
         <view class="fp-hero-time">生成时间 · {{ formatTime(result.created_at) }}</view>
       </view>
 
-      <!-- 1. 一句话结论（按 overall 级别给颜色） -->
-      <view v-if="result.one_sentence" class="fp-verdict" :class="'fp-verdict-' + levelClass">
+      <!-- 1. 一句话结论（按 overall 级别给颜色）
+           v23.2 增量：优先用 overall.verdict（SSOT 结构化字段），fallback 到 one_sentence
+           verdict 是 LEVEL_NARRATIVE 6 等级 × 1 句 的银行客户经理口径（如 S 级"您的资质已属卓越，可直接申请"）
+           one_sentence 在 L1-L4 会被 issues/projection 拼接覆盖，所以 verdict 才是更准的"顶部判决" -->
+      <view v-if="result.overall?.verdict || result.one_sentence" class="fp-verdict" :class="'fp-verdict-' + levelClass">
         <view class="fp-verdict-icon">
           <UiIcon :name="verdictIcon" :size="40" :color="verdictColor" />
         </view>
         <view class="fp-verdict-body">
           <view class="fp-verdict-eyebrow">模拟评审结论</view>
           <view class="fp-verdict-text" :style="{ color: verdictColor }">
-            {{ result.one_sentence }}
+            {{ result.overall?.verdict || result.one_sentence }}
           </view>
         </view>
       </view>

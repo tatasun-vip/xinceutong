@@ -92,7 +92,21 @@ export interface FreeResult {
   bank_name?: string
   bank_focus?: string
   bank_key_tags?: string[]
-  overall: { score: number; level: string; limit_min?: number; limit_max?: number; rate_min?: number; rate_max?: number; pass_probability?: string }
+  overall: {
+    score: number
+    level: string
+    limit_min?: number
+    limit_max?: number
+    rate_min?: number
+    rate_max?: number
+    pass_probability?: string
+    // v23.2 增量：LEVEL_NARRATIVE SSOT 结构化字段
+    verdict?: string
+    recommendation?: string
+    cta?: string
+    pass_probability_desc?: string
+    rate_description?: string
+  }
   free_summary?: string
   is_paid: boolean
   one_sentence?: string

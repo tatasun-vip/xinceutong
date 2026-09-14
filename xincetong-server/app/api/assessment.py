@@ -328,6 +328,20 @@ async def submit_assessment(
     rate_min = overall_dict["rate_min"]
     rate_max = overall_dict["rate_max"]
     pass_prob = overall_dict["pass_probability"]
+
+    # ============ v23.2 P1 修复：把 LEVEL_NARRATIVE SSOT 结构化字段加到 overall ============
+    # 之前前端只能从 one_sentence 字符串反推 verdict（容易误判），现在直接给结构化字段
+    # verdict:        5 等级综合结论（如 "您的资质已属卓越，可直接申请"）
+    # recommendation: 5 等级申请建议（如 "建议优先选择 5 大行低息产品..."）
+    # cta:            5 等级行动号召（如 "立即申请"/"查看改善建议"）
+    # pass_probability_desc:  5 等级通过率描述（如 "通过率高（约 80-95%）"）
+    # rate_description:        5 等级利率档位（如 "年化 3.20%-4.50%（最优档）"）
+    _level_narrative = LEVEL_NARRATIVE.get(overall_level, LEVEL_NARRATIVE["C"])
+    overall_dict["verdict"] = _level_narrative["verdict"]
+    overall_dict["recommendation"] = _level_narrative["recommendation"]
+    overall_dict["cta"] = _level_narrative["cta"]
+    overall_dict["pass_probability_desc"] = LEVEL_PASS_PROB.get(overall_level, "—")
+    overall_dict["rate_description"] = LEVEL_RATE_DESC.get(overall_level, "—")
     # 同步更新数据库（如果之前持久化了不一致的数据）
     a.level = overall_level
     a.limit_min = limit_min

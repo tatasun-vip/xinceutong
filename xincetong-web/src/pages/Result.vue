@@ -49,7 +49,13 @@ const LEVEL_DESC = computed<Record<string, string>>(() => { const c = (result.va
 const productResults = computed<ProductResult[]>(() => (result.value as any)?.product_results || [])
 const productCardStyle = (code: string) => { const c = getProductColor(code); return { borderLeftColor: c.color, '--pc-color': c.color, '--pc-bg': c.bg, '--pc-text': c.text } as any }
 
-const oneSentence = computed(() => { const r: any = result.value; if (!r) return '请先完成测评查看结论'; return r.one_sentence || r.free_summary || '当前资质需进一步评估' })
+// v23.2 增量：优先用 overall.verdict（SSOT 结构化字段），fallback 到 one_sentence
+// verdict 是 LEVEL_NARRATIVE 6 等级 × 1 句 的银行客户经理口径
+const oneSentence = computed(() => {
+  const r: any = result.value
+  if (!r) return '请先完成测评查看结论'
+  return r.overall?.verdict || r.one_sentence || r.free_summary || '当前资质需进一步评估'
+})
 
 const paywallSub = computed(() => {
   const r: any = result.value; if (!r) return '命中规则 · 不推荐原因 · 提分建议 · 实际可贷金额'

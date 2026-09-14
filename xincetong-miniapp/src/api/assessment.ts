@@ -50,6 +50,17 @@ export interface OverallScore {
   rate_min: number
   rate_max: number
   pass_probability: string
+  // v23.2 增量：LEVEL_NARRATIVE SSOT 结构化字段（让前端无需解析 one_sentence 字符串）
+  /** 综合结论（如 "您的资质已属卓越，可直接申请"） */
+  verdict?: string
+  /** 申请建议（如 "建议优先选择 5 大行低息产品..."） */
+  recommendation?: string
+  /** 行动号召（如 "立即申请"/"查看改善建议"/"暂缓申请"） */
+  cta?: string
+  /** 通过率描述（如 "通过率高（约 80-95%）"） */
+  pass_probability_desc?: string
+  /** 利率档位（如 "年化 3.20%-4.50%（最优档）"） */
+  rate_description?: string
 }
 
 export interface ProductResult {

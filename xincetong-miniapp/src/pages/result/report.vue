@@ -37,15 +37,16 @@
         <view v-if="report.paid_at" class="rp-hero-time">解锁时间 · {{ formatTime(report.paid_at) }}</view>
       </view>
 
-      <!-- 1. 一句话结论（首屏焦点） -->
-      <view v-if="report.one_sentence" class="rp-verdict" :class="'rp-verdict-' + levelClass">
+      <!-- 1. 一句话结论（首屏焦点）
+           v23.2 增量：优先用 overall.verdict（SSOT 结构化字段），fallback 到 one_sentence -->
+      <view v-if="report.overall?.verdict || report.one_sentence" class="rp-verdict" :class="'rp-verdict-' + levelClass">
         <view class="rp-verdict-icon">
           <UiIcon :name="verdictIcon" :size="40" :color="verdictColor" />
         </view>
         <view class="rp-verdict-body">
           <view class="rp-verdict-eyebrow">模拟评审结论</view>
           <view class="rp-verdict-text" :style="{ color: verdictColor }">
-            {{ report.one_sentence }}
+            {{ report.overall?.verdict || report.one_sentence }}
           </view>
         </view>
       </view>

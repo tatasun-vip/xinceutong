@@ -60,6 +60,7 @@ import ComplianceBar from '@/components/compliance-bar/ComplianceBar.vue'
 import { useAssessmentStore } from '@/store/assessment'
 import { useShareCode } from '@/composables/useShareCode'
 import { pageView } from '@/utils/track'
+import { hasPaidToken, getPaywallUrl } from '@/utils/paywall'
 
 const store = useAssessmentStore()
 const selected = ref<'personal' | 'business' | ''>('')
@@ -89,6 +90,11 @@ onLoad(() => {
 function onSelect(v: 'personal' | 'business') {
   selected.value = v
   store.setType(v)
+  // v22 决策：进入测评前先弹 9.9 付费墙（防 history redirectTo 绕过）
+  if (!hasPaidToken()) {
+    uni.redirectTo({ url: getPaywallUrl('type', v) })
+    return
+  }
   setTimeout(() => {
     uni.redirectTo({ url: '/pages/assess/step1-basic' })
   }, 200)

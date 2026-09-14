@@ -182,6 +182,72 @@
         <path d="M12 3l10 18H2L12 3z" />
         <path d="M12 10v5M12 18h.01" />
       </g>
+      <!-- ============ 6 大产品专用（替代 emoji，奢华金融调性）============ -->
+      <!-- 优质单位（🏛️ → 古典立柱建筑）-->
+      <g v-else-if="name === 'landmark'">
+        <path d="M3 21h18" />
+        <path d="M3 10h18" />
+        <path d="M5 10v8M9 10v8M15 10v8M19 10v8" />
+        <path d="M3 7l9-5 9 5" />
+        <path d="M12 2v5" />
+      </g>
+      <!-- 公积金（💎 → 钻石线条）-->
+      <g v-else-if="name === 'gem'">
+        <path d="M6 3h12l3 6-9 12L3 9z" />
+        <path d="M3 9h18" />
+        <path d="M9 3l3 6 3-6" />
+        <path d="M12 9L3 21M12 9l9 12" />
+      </g>
+      <!-- 工资（💼 → 公文包）-->
+      <g v-else-if="name === 'briefcase'">
+        <rect x="3" y="7" width="18" height="13" rx="2" />
+        <path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+        <path d="M3 13h18" />
+      </g>
+      <!-- 房主（🏠 → 房子 + 屋顶）-->
+      <g v-else-if="name === 'house'">
+        <path d="M3 11l9-7 9 7" />
+        <path d="M5 10v10h14V10" />
+        <path d="M10 20v-6h4v6" />
+      </g>
+      <!-- 税（🧾 → 票据）-->
+      <g v-else-if="name === 'receipt'">
+        <path d="M5 3h14v18l-3-2-3 2-3-2-3 2-2-2z" />
+        <path d="M8 8h8M8 12h8M8 16h5" />
+      </g>
+      <!-- 灯泡 / 改善提示（💡）-->
+      <g v-else-if="name === 'lightbulb'">
+        <path d="M9 18h6" />
+        <path d="M10 22h4" />
+        <path d="M12 2a7 7 0 0 0-4 12.7c.5.5 1 1.3 1 2.3v1h6v-1c0-1 .5-1.8 1-2.3A7 7 0 0 0 12 2z" />
+      </g>
+      <!-- 叉号圆圈（✗ 扣分项）-->
+      <g v-else-if="name === 'x-circle'">
+        <circle cx="12" cy="12" r="9" />
+        <path d="M9 9l6 6M15 9l-6 6" />
+      </g>
+      <!-- 信息圆圈（ℹ 命中加分代替 ✓）-->
+      <g v-else-if="name === 'info-circle'">
+        <circle cx="12" cy="12" r="9" />
+        <path d="M12 11v5" />
+        <path d="M12 8h.01" />
+      </g>
+      <!-- 风险（⚠ 推荐用于 rp-strat-warning）-->
+      <g v-else-if="name === 'risk'">
+        <path d="M12 3l10 18H2L12 3z" />
+        <path d="M12 10v5" />
+        <path d="M9 13l6-3" />
+        <path d="M9 16l6-3" />
+      </g>
+      <!-- 解锁（🔓）-->
+      <g v-else-if="name === 'unlock'">
+        <rect x="4" y="11" width="16" height="10" rx="1" />
+        <path d="M8 11V7a4 4 0 0 1 7-2.6" />
+      </g>
+      <!-- 星 / 推荐（⭐ 替代）-->
+      <g v-else-if="name === 'star-fill'">
+        <path d="M12 3l3 6 6 .9-4.5 4.4 1 6.7L12 17.8 6.5 21l1-6.7L3 9.9 9 9l3-6z" fill="currentColor" stroke="none" />
+      </g>
     </svg>
   </view>
 </template>
@@ -224,6 +290,17 @@ interface Props {
     | 'close'
     | 'check-circle'
     | 'warning'
+    | 'landmark'
+    | 'gem'
+    | 'briefcase'
+    | 'house'
+    | 'receipt'
+    | 'lightbulb'
+    | 'x-circle'
+    | 'info-circle'
+    | 'risk'
+    | 'unlock'
+    | 'star-fill'
   size?: number
   color?: string
 }

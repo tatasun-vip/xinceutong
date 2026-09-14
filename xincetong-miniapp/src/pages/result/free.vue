@@ -17,27 +17,7 @@
     </view>
 
     <template v-else-if="result">
-      <!-- v9 增量 · B1：360rpx 金色付费引导 banner（强动机付费）
-           设计：金色渐变背景 + 左文"完整报告解锁 ¥9.9" + 右按钮"立即解锁"
-           位置：fp-hero 之上，所有结果内容之前 → 用户第一眼看到 -->
-      <view v-if="!result.is_paid" class="fp-paywall-banner" @tap="goPay">
-        <view class="fp-paywall-banner-bg" />
-        <view class="fp-paywall-banner-content">
-          <view class="fp-paywall-banner-left">
-            <view class="fp-paywall-banner-eyebrow">UNLOCK · 完整报告</view>
-            <view class="fp-paywall-banner-title">
-              6 大产品深度证据链
-              <text class="fp-paywall-banner-amount">¥{{ siteStore.payPrice }}</text>
-            </view>
-            <view class="fp-paywall-banner-sub">命中规则 · 不推荐原因 · 提分建议 · 实际可贷金额</view>
-          </view>
-          <view class="fp-paywall-banner-btn">
-            <text class="fp-paywall-banner-btn-text">立即解锁</text>
-            <text class="fp-paywall-banner-btn-arrow">→</text>
-          </view>
-        </view>
-        <view class="fp-paywall-banner-tip">7 天内不满意全额退款 · 支付即视为同意《付费服务协议》</view>
-      </view>
+      <!-- v21 决策：删除 B1 金色付费引导 banner（强制 9.9 弹层已上移到 submit 后） -->
 
       <!-- 报告头（深蓝渐变） -->
       <view class="fp-hero">
@@ -170,51 +150,32 @@
             <text class="fp-issue-5w-text">{{ result.top_issue_free.how || '请查看完整报告了解详细改善路径' }}</text>
           </view>
         </view>
-        <!-- v9 增量：末 1/3 渐隐遮罩 + 锁标浮层（最强心锚：内容只露 2/3，剩下被锁） -->
-        <view v-if="(result.top_issues_total || 1) > 1" class="fp-issue-locked">
-          <view class="fp-issue-locked-fade" />
-          <view class="fp-issue-locked-overlay" @tap="goPay">
-            <view class="fp-issue-locked-icon-row">
-              <text class="fp-issue-locked-icon">🔒</text>
-              <text class="fp-issue-locked-title">解锁完整报告</text>
-            </view>
-            <text class="fp-issue-locked-sub">查看其余 {{ (result.top_issues_total || 1) - 1 }} 个核心问题深度分析 + 改善路径</text>
-          </view>
-        </view>
+        <!-- v21 决策：删除 fp-issue-locked 末 1/3 渐隐遮罩（核心问题全部可读） -->
       </view>
 
-      <!-- 3.5 改善后推演（v9 增量：整张虚化 + 锁标浮层） -->
-      <view v-if="result.improvement_projection" class="fp-projection-card fp-projection-locked">
-        <view class="fp-projection-content">
-          <view class="fp-proj-eyebrow">AFTER 90 DAYS · 改善后预计</view>
-          <view class="fp-proj-arrow">
-            <view class="fp-proj-col">
-              <text class="fp-proj-label">当前</text>
-              <text class="fp-proj-val" :style="{ color: levelCfg.color }">
-                {{ result.overall.level }} · {{ result.overall.score }}分
-              </text>
-              <text class="fp-proj-meta">通过率 {{ result.overall.pass_probability }}</text>
-            </view>
-            <view class="fp-proj-arrow-icon">→</view>
-            <view class="fp-proj-col fp-proj-col-after">
-              <text class="fp-proj-label">改善后</text>
-              <text class="fp-proj-val" :style="{ color: PASS_PROB_COLOR[result.improvement_projection.pass_probability] || '#666' }">
-                {{ result.improvement_projection.level }} · {{ result.improvement_projection.score }}分
-              </text>
-              <text class="fp-proj-meta">通过率 {{ result.improvement_projection.pass_probability }}</text>
-            </view>
+      <!-- 3.5 改善后推演（v21 决策：去除整张虚化 + 锁标浮层，全部可读） -->
+      <view v-if="result.improvement_projection" class="fp-projection-card">
+        <view class="fp-proj-eyebrow">AFTER 90 DAYS · 改善后预计</view>
+        <view class="fp-proj-arrow">
+          <view class="fp-proj-col">
+            <text class="fp-proj-label">当前</text>
+            <text class="fp-proj-val" :style="{ color: levelCfg.color }">
+              {{ result.overall.level }} · {{ result.overall.score }}分
+            </text>
+            <text class="fp-proj-meta">通过率 {{ result.overall.pass_probability }}</text>
           </view>
-          <view class="fp-proj-foot">
-            💡 修复 {{ result.improvement_projection.fixed_count }} 个核心问题后预计可达
+          <view class="fp-proj-arrow-icon">→</view>
+          <view class="fp-proj-col fp-proj-col-after">
+            <text class="fp-proj-label">改善后</text>
+            <text class="fp-proj-val" :style="{ color: PASS_PROB_COLOR[result.improvement_projection.pass_probability] || '#666' }">
+              {{ result.improvement_projection.level }} · {{ result.improvement_projection.score }}分
+            </text>
+            <text class="fp-proj-meta">通过率 {{ result.improvement_projection.pass_probability }}</text>
           </view>
         </view>
-        <!-- v9 增量：整张虚化 + 中心锁标浮层（最强心锚：能看见但看不清，必须解锁） -->
-        <view class="fp-projection-overlay" @tap="goPay">
-          <view class="fp-projection-lock-card">
-            <text class="fp-projection-lock-icon">🔒</text>
-            <text class="fp-projection-lock-title">解锁 30/60/90 天路径</text>
-            <text class="fp-projection-lock-sub">查看完整改善推演 + 分阶段动作</text>
-          </view>
+        <view class="fp-proj-foot">
+          <UiIcon name="lightbulb" :size="24" :color="#C9A96E" />
+          <text class="fp-proj-foot-text">修复 {{ result.improvement_projection.fixed_count }} 个核心问题后预计可达</text>
         </view>
       </view>
 
@@ -233,7 +194,13 @@
         >
           <!-- 顶部条：icon + 产品名 + 等级 chip -->
           <view class="fp-product-head">
-            <view class="fp-product-icon">{{ getProductColor(p.product_code).icon }}</view>
+            <view class="fp-product-icon">
+              <UiIcon
+                :name="getProductColor(p.product_code).icon"
+                :size="40"
+                :color="getProductColor(p.product_code).color"
+              />
+            </view>
             <view class="fp-product-head-body">
               <view class="fp-product-name">{{ p.product_name }}</view>
               <view v-if="p.product_subtitle" class="fp-product-sub">{{ p.product_subtitle }}</view>
@@ -268,11 +235,14 @@
             </view>
           </view>
 
-          <!-- 证据链 blur 区（解锁后清晰可见，免费版模糊遮罩） -->
-          <view class="fp-product-evidence fp-product-evidence-locked">
+          <!-- 证据链区（v21 决策：去除 -locked 类，证据链全部可读） -->
+          <view class="fp-product-evidence">
             <!-- 命中规则（高分） -->
             <view v-if="p.hit_rules && p.hit_rules.length" class="fp-ev-block">
-              <view class="fp-ev-label">✓ 命中加分</view>
+              <view class="fp-ev-label">
+                <UiIcon name="check-circle" :size="24" :color="getProductColor(p.product_code).color" />
+                <text>命中加分</text>
+              </view>
               <view v-for="(r, k) in p.hit_rules" :key="k" class="fp-ev-row">
                 <text class="fp-ev-rule">{{ r.rule }}</text>
                 <text class="fp-ev-score" :style="{ color: getProductColor(p.product_code).color }">+{{ r.score }}</text>
@@ -280,7 +250,10 @@
             </view>
             <!-- 扣分规则（低分） -->
             <view v-if="p.low_rules && p.low_rules.length" class="fp-ev-block">
-              <view class="fp-ev-label">✗ 扣分项</view>
+              <view class="fp-ev-label">
+                <UiIcon name="x-circle" :size="24" color="#9B2226" />
+                <text>扣分项</text>
+              </view>
               <view v-for="(r, k) in p.low_rules" :key="k" class="fp-ev-row">
                 <text class="fp-ev-rule">{{ r.rule }}</text>
                 <text class="fp-ev-score fp-ev-score-neg">{{ r.score }}</text>
@@ -288,8 +261,19 @@
             </view>
             <!-- 不推荐原因 -->
             <view v-if="p.not_recommend_reason" class="fp-ev-block">
-              <view class="fp-ev-label">⚠ 不推荐原因</view>
+              <view class="fp-ev-label">
+                <UiIcon name="warning" :size="24" color="#B25E00" />
+                <text>不推荐原因</text>
+              </view>
               <view class="fp-ev-reason">{{ p.not_recommend_reason }}</view>
+            </view>
+            <!-- v22+ 改善建议 hint（SSOT 派生：improve_vars top1 口语化总结） -->
+            <view v-if="p.improve_hint" class="fp-ev-block fp-ev-hint">
+              <view class="fp-ev-label">
+                <UiIcon name="arrow-up" :size="24" color="#2A9D8F" />
+                <text>如何改善</text>
+              </view>
+              <view class="fp-ev-reason">{{ p.improve_hint }}</view>
             </view>
             <!-- 提分变量 -->
             <view v-if="p.improve_vars && p.improve_vars.length" class="fp-ev-block">
@@ -305,32 +289,15 @@
               <view class="fp-ev-reason">
                 测算金额 × 等级折扣 + 渠道 cap 后预估
               </view>
-            </view>
-          </view>
+              </view>
+              </view>
+              <!-- v21 决策：删除 fp-product-locked-overlay 锁标浮层（证据链已全部可读） -->
+              </view>
+              </view>
 
-          <!-- 锁标浮层（统一在每张卡底部，引导解锁） -->
-          <view v-if="!result.is_paid" class="fp-product-locked-overlay" @tap.stop="goPay">
-            <text class="fp-product-locked-icon">🔒</text>
-            <text class="fp-product-locked-text">解锁查看 {{ p.product_name }} 完整证据链</text>
-            <text class="fp-product-locked-sub">¥{{ siteStore.payPrice }} · 一次解锁全部 6 大产品</text>
-          </view>
-        </view>
-      </view>
+      <!-- v21 决策：删除 v14 金色汇总 banner（强制 9.9 弹层已上移到 submit 后） -->
 
-      <!-- 5. 极简金线 CTA（v9 增量：D3 决策 — 半透明白底 + 金线 + 9.9 + 箭头） -->
-      <view v-if="!result.is_paid" class="fp-cta" @tap="goPay">
-        <view class="fp-cta-line">
-          <view class="fp-cta-left">
-            <text class="fp-cta-eyebrow">UNLOCK FULL REPORT</text>
-            <view class="fp-cta-price-row">
-              <text class="fp-cta-price-num">¥{{ siteStore.payPrice }}</text>
-              <text class="fp-cta-price-go">查看完整报告</text>
-            </view>
-          </view>
-          <text class="fp-cta-arrow">→</text>
-        </view>
-        <text class="fp-cta-tip">7 天内不满意全额退款</text>
-      </view>
+      <!-- v21 决策：底部重复 CTA 已删（v13 顶部 paywall-banner 已被 v21 submit 后强制 9.9 弹层替代） -->
 
       <!-- 免责声明 -->
       <view class="fp-disclaimer">
@@ -871,10 +838,6 @@ function pickBank(code: string) {
   }, 800)
 }
 
-function goPay() {
-  uni.navigateTo({ url: `/pages/result/pay?id=${assessmentId.value}` })
-}
-
 // v6 修复：报告页底部导航（返回首页 / 查看我的报告）
 function goHome() {
   // switchTab 是跳到 tabBar 页（首页在 tabBar）的标准方式，会清空非 tabBar 页面栈
@@ -965,7 +928,7 @@ function goHistory() {
 }
 /* v8 调 L：合并规则改成单独规则，fp-hero-no 白色 20rpx，fp-hero-time 浅白 20rpx 0.55透明，letter-spacing 1→2rpx */
 .fp-hero-no {
-  font-size: 20rpx;
+  font-size: 24rpx;
   color: rgba(255, 255, 255, 0.95);
   letter-spacing: 2rpx;
   display: block;
@@ -973,7 +936,7 @@ function goHistory() {
   font-family: $ff-base;
 }
 .fp-hero-time {
-  font-size: 20rpx;
+  font-size: 24rpx;
   color: rgba(255, 255, 255, 0.55);
   letter-spacing: 2rpx;
   display: block;
@@ -1085,7 +1048,7 @@ function goHistory() {
 }
 .fp-score-unit {
   font-family: $ff-base;
-  font-size: 20rpx;
+  font-size: 24rpx;
   color: #8B8B8B;
   letter-spacing: 4rpx;
   margin-top: 8rpx;
@@ -1115,7 +1078,7 @@ function goHistory() {
   background: none;
 }
 .fp-score-pass-label {
-  font-size: 20rpx;
+  font-size: 24rpx;
   color: #8B8B8B;
   letter-spacing: 1rpx;
   font-weight: 400;
@@ -1136,7 +1099,7 @@ function goHistory() {
   border-top: 1rpx solid rgba(15, 27, 45, 0.04);
 }
 .fp-amount-label {
-  font-size: 22rpx;
+  font-size: 24rpx;
   color: #8B8B8B;
   letter-spacing: 1rpx;
   font-weight: 400;
@@ -1166,14 +1129,14 @@ function goHistory() {
 }
 .fp-issue-tag {
   font-family: $ff-base;
-  font-size: 20rpx;
+  font-size: 24rpx;
   color: #FFFFFF;
   padding: 4rpx 12rpx;
   letter-spacing: 1rpx;
   font-weight: 600;
 }
 .fp-issue-cat {
-  font-size: 22rpx;
+  font-size: 24rpx;
   color: #8B8B8B;
   letter-spacing: 1rpx;
   padding: 2rpx 12rpx;
@@ -1219,7 +1182,7 @@ function goHistory() {
 }
 /* v8 极简：tip 字号 22→20rpx，去 italic，颜色更淡（暖灰 8B8B8B→A0A0A0） */
 .fp-issue-tip {
-  font-size: 20rpx;
+  font-size: 24rpx;
   color: #A0A0A0;
   letter-spacing: 0.5rpx;
   line-height: 1.6;
@@ -1274,7 +1237,7 @@ function goHistory() {
   font-weight: 600;
 }
 .fp-issue-progress-text {
-  font-size: 22rpx;
+  font-size: 24rpx;
   color: #5A6473;
   letter-spacing: 0.5rpx;
 }
@@ -1298,56 +1261,6 @@ function goHistory() {
   transition: width 0.6s ease;
 }
 
-/* === v9 增量 · 末尾 1/3 渐隐遮罩 + 锁标浮层 === */
-.fp-issue-locked {
-  position: relative;
-  margin: 20rpx -32rpx -32rpx;
-  height: 200rpx;
-  pointer-events: none;
-}
-.fp-issue-locked-fade {
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0) 0%, #FFFFFF 60%, #FFFFFF 100%);
-  pointer-events: none;
-}
-.fp-issue-locked-overlay {
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  padding: 24rpx 32rpx;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 8rpx;
-  pointer-events: auto;
-}
-.fp-issue-locked-icon-row {
-  display: flex;
-  align-items: center;
-  gap: 10rpx;
-  margin-bottom: 4rpx;
-}
-.fp-issue-locked-icon {
-  font-size: 28rpx;
-  filter: grayscale(0.3);
-}
-.fp-issue-locked-title {
-  font-family: $ff-base;
-  font-size: 30rpx;
-  font-weight: 700;
-  color: #0F1B2D;
-  letter-spacing: 2rpx;
-}
-.fp-issue-locked-sub {
-  font-size: 22rpx;
-  color: #8B8B8B;
-  letter-spacing: 0.5rpx;
-  text-align: center;
-  line-height: 1.5;
-}
-
 /* === 3.5 改善后推演（前后对比） === */
 .fp-projection-card {
   background: linear-gradient(135deg, rgba(201, 169, 110, 0.08), rgba(201, 169, 110, 0.04));
@@ -1357,51 +1270,7 @@ function goHistory() {
   position: relative;
   overflow: hidden;
 }
-/* v9 增量：投影卡片虚化容器（最关键样式，让用户"看到"但"看不清"） */
-.fp-projection-content {
-  filter: blur(6rpx);
-  pointer-events: none;
-  user-select: none;
-  /* 防止虚化导致选择文字 */
-  -webkit-user-select: none;
-}
-.fp-projection-overlay {
-  position: absolute;
-  inset: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: rgba(245, 243, 239, 0.4);
-  z-index: 2;
-}
-.fp-projection-lock-card {
-  background: #FFFFFF;
-  border: 1rpx solid #C9A96E;
-  padding: 32rpx 48rpx;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 12rpx;
-  box-shadow: 0 8rpx 24rpx rgba(15, 27, 45, 0.1);
-  min-width: 380rpx;
-}
-.fp-projection-lock-icon {
-  font-size: 36rpx;
-  filter: grayscale(0.2);
-}
-.fp-projection-lock-title {
-  font-family: $ff-base;
-  font-size: 30rpx;
-  font-weight: 700;
-  color: #0F1B2D;
-  letter-spacing: 2rpx;
-}
-.fp-projection-lock-sub {
-  font-size: 22rpx;
-  color: #5A6473;
-  letter-spacing: 0.5rpx;
-  text-align: center;
-}
+/* v21 决策：删除 fp-projection-content blur + fp-projection-overlay 锁标浮层（投影卡全部可读） */
 /* v8 调 L：proj-eyebrow 字号 20→18rpx + letter-spacing 4→6rpx */
 .fp-proj-eyebrow {
   font-family: $ff-base;
@@ -1436,7 +1305,7 @@ function goHistory() {
 }
 .fp-proj-label {
   font-family: $ff-base;
-  font-size: 20rpx;
+  font-size: 24rpx;
   color: #8B8B8B;
   letter-spacing: 2rpx;
 }
@@ -1447,7 +1316,7 @@ function goHistory() {
   letter-spacing: 1rpx;
 }
 .fp-proj-meta {
-  font-size: 20rpx;
+  font-size: 24rpx;
   color: #8B8B8B;
   letter-spacing: 0.5rpx;
 }
@@ -1459,8 +1328,18 @@ function goHistory() {
   letter-spacing: 0;
 }
 .fp-proj-foot {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6rpx;
   text-align: center;
-  font-size: 22rpx;
+  font-size: 24rpx;
+  color: #0F1B2D;
+  letter-spacing: 0.5rpx;
+}
+.fp-proj-foot-text {
+  font-family: $ff-base;
+  font-size: 24rpx;
   color: #0F1B2D;
   letter-spacing: 0.5rpx;
 }
@@ -1473,105 +1352,9 @@ function goHistory() {
   border: 1rpx solid rgba(15, 27, 45, 0.08);
 }
 
-/* v9 增量 · B1：360rpx 金色付费引导 banner */
-.fp-paywall-banner {
-  position: relative;
-  margin: 0 0 -16rpx;     /* 紧贴 fp-hero 之下，与 verdict 拉开 */
-  padding: 28rpx 32rpx 24rpx;
-  overflow: hidden;
-  cursor: pointer;
-}
-.fp-paywall-banner-bg {
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(135deg, #B89554 0%, #C9A96E 50%, #8C6F36 100%);
-  z-index: 0;
-}
-.fp-paywall-banner-content {
-  position: relative;
-  z-index: 1;
-  display: flex;
-  align-items: center;
-  gap: 24rpx;
-  min-height: 100rpx;
-}
-.fp-paywall-banner-left {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 6rpx;
-}
-.fp-paywall-banner-eyebrow {
-  font-family: $ff-base;
-  font-size: 18rpx;
-  color: rgba(255, 255, 255, 0.85);
-  letter-spacing: 4rpx;
-  font-weight: 600;
-  display: block;
-}
-.fp-paywall-banner-title {
-  font-family: $ff-base;
-  font-size: 30rpx;
-  color: #FFFFFF;
-  font-weight: 700;
-  letter-spacing: 1rpx;
-  line-height: 1.3;
-  display: block;
-}
-.fp-paywall-banner-amount {
-  font-size: 36rpx;
-  color: #FFFFFF;
-  font-weight: 800;
-  margin-left: 8rpx;
-  font-family: $ff-base;
-}
-.fp-paywall-banner-sub {
-  font-family: $ff-base;
-  font-size: 20rpx;
-  color: rgba(255, 255, 255, 0.78);
-  letter-spacing: 0.5rpx;
-  display: block;
-  line-height: 1.4;
-}
-.fp-paywall-banner-btn {
-  flex-shrink: 0;
-  padding: 16rpx 28rpx;
-  background: #FFFFFF;
-  display: flex;
-  align-items: center;
-  gap: 8rpx;
-  box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.12);
-}
-.fp-paywall-banner-btn-text {
-  font-family: $ff-base;
-  font-size: 26rpx;
-  color: #8C6F36;
-  font-weight: 700;
-  letter-spacing: 1rpx;
-}
-.fp-paywall-banner-btn-arrow {
-  font-size: 30rpx;
-  color: #8C6F36;
-  font-weight: 700;
-  line-height: 1;
-}
-.fp-paywall-banner-tip {
-  position: relative;
-  z-index: 1;
-  font-family: $ff-base;
-  font-size: 18rpx;
-  color: rgba(255, 255, 255, 0.65);
-  text-align: center;
-  margin-top: 14rpx;
-  letter-spacing: 0.5rpx;
-  display: block;
-}
+/* v21 决策：删除 B1 金色付费引导 banner 整块（强制 9.9 弹层已上移到 submit 后） */
 
-/* v9 增量 · C1：6 卡重做样式（独立色+icon+等级+基础分+blur 证据链）
-   关键修复：v9 初版用 var(--pc-bg) / var(--pc-color) CSS 变量 + .fp-product-wrap 共享样式
-   但 Sass 把 var() 第二个参数 / 复合选择器解析为选择器上下文 → "expected selector" 编译错
-   修复：6 产品各写 6 套 SCSS 类（绕开 var() + 用具体类名让 Sass 解析明确） */
+/* v9 增量 · C1：6 卡重做样式（独立色+icon+等级+基础分，v21 去 blur 证据链全部可读） */
 .fp-product-wrap {
   position: relative;
   margin-top: 24rpx;
@@ -1612,7 +1395,6 @@ function goHistory() {
   margin-bottom: 20rpx;
 }
 .fp-product-icon {
-  font-size: 44rpx;
   width: 64rpx;
   height: 64rpx;
   display: flex;
@@ -1621,7 +1403,7 @@ function goHistory() {
   background: rgba(255, 255, 255, 0.7);
   border-radius: 8rpx;
   flex-shrink: 0;
-  line-height: 1;
+  line-height: 0;
 }
 .fp-product-head-body {
   flex: 1;
@@ -1641,7 +1423,7 @@ function goHistory() {
 }
 .fp-product-sub {
   font-family: $ff-base;
-  font-size: 20rpx;
+  font-size: 24rpx;
   color: #5A6473;
   letter-spacing: 0.5rpx;
   line-height: 1.3;
@@ -1651,7 +1433,7 @@ function goHistory() {
   flex-shrink: 0;
   padding: 6rpx 14rpx;
   font-family: $ff-base;
-  font-size: 20rpx;
+  font-size: 24rpx;
   font-weight: 700;
   letter-spacing: 0.5rpx;
   border: 1rpx solid;
@@ -1674,13 +1456,13 @@ function goHistory() {
 }
 .fp-product-score-unit {
   font-family: $ff-base;
-  font-size: 22rpx;
+  font-size: 24rpx;
   color: #5A6473;
   letter-spacing: 1rpx;
 }
 .fp-product-score-pass {
   font-family: $ff-base;
-  font-size: 22rpx;
+  font-size: 24rpx;
   color: #5A6473;
   letter-spacing: 0.5rpx;
   margin-left: auto;
@@ -1699,7 +1481,7 @@ function goHistory() {
 }
 .fp-product-limit-label {
   font-family: $ff-base;
-  font-size: 22rpx;
+  font-size: 24rpx;
   color: #5A6473;
   letter-spacing: 1rpx;
   flex-shrink: 0;
@@ -1711,7 +1493,7 @@ function goHistory() {
   letter-spacing: 0.5rpx;
   line-height: 1.2;
 }
-/* 证据链 blur 区：默认模糊，付费后去掉 .fp-product-evidence-locked 即可清晰 */
+/* v21 决策：删除 .fp-product-evidence-locked blur（证据链全部可读） */
 .fp-product-evidence {
   position: relative;
   padding: 16rpx 18rpx;
@@ -1719,10 +1501,6 @@ function goHistory() {
   border-radius: 6rpx;
   min-height: 80rpx;
 }
-.fp-product-evidence-locked {
-  filter: blur(8rpx);
-  -webkit-filter: blur(8rpx);
-  user-select: none;
   pointer-events: none;
 }
 .fp-ev-block {
@@ -1733,12 +1511,17 @@ function goHistory() {
 }
 .fp-ev-label {
   font-family: $ff-base;
-  font-size: 20rpx;
+  font-size: 24rpx;
   color: #5A6473;
   letter-spacing: 1rpx;
   font-weight: 600;
   margin-bottom: 6rpx;
-  display: block;
+  display: flex;
+  align-items: center;
+  gap: 6rpx;
+}
+.fp-ev-label :deep(.ui-icon) {
+  flex-shrink: 0;
 }
 .fp-ev-row {
   display: flex;
@@ -1746,7 +1529,7 @@ function goHistory() {
   gap: 8rpx;
   padding: 2rpx 0;
   font-family: $ff-base;
-  font-size: 22rpx;
+  font-size: 24rpx;
   line-height: 1.5;
 }
 .fp-ev-rule {
@@ -1758,7 +1541,7 @@ function goHistory() {
   white-space: nowrap;
 }
 .fp-ev-score {
-  font-size: 22rpx;
+  font-size: 24rpx;
   font-weight: 700;
   flex-shrink: 0;
   font-family: $ff-base;
@@ -1768,48 +1551,23 @@ function goHistory() {
 }
 .fp-ev-reason {
   font-family: $ff-base;
-  font-size: 22rpx;
+  font-size: 24rpx;
   color: #1A1A1A;
   line-height: 1.5;
   letter-spacing: 0.3rpx;
 }
-
-/* v9 增量：每张卡底部锁标浮层（C1 决策：所有 6 张都模糊，统一"解锁=清晰"钩子） */
-.fp-product-locked-overlay {
-  position: relative;
-  margin-top: 16rpx;
-  padding: 18rpx 20rpx;
-  background: linear-gradient(135deg, rgba(184, 149, 84, 0.95) 0%, rgba(201, 169, 110, 0.95) 100%);
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 4rpx;
-  text-align: center;
+/* v22+ 改善建议 hint 块（SSOT 派生：与 not_recommend_reason 互补，绿色调） */
+.fp-ev-hint {
+  background: rgba(42, 157, 143, 0.06);
+  border-left: 4rpx solid #2A9D8F;
+  padding: 8rpx 12rpx;
   border-radius: 6rpx;
-  cursor: pointer;
 }
-.fp-product-locked-icon {
-  font-size: 32rpx;
-  line-height: 1;
-  margin-bottom: 2rpx;
+.fp-ev-hint .fp-ev-reason {
+  color: #1F4D47;
 }
-.fp-product-locked-text {
-  font-family: $ff-base;
-  font-size: 24rpx;
-  font-weight: 700;
-  color: #FFFFFF;
-  letter-spacing: 0.5rpx;
-  line-height: 1.3;
-  display: block;
-}
-.fp-product-locked-sub {
-  font-family: $ff-base;
-  font-size: 20rpx;
-  color: rgba(255, 255, 255, 0.85);
-  letter-spacing: 0.5rpx;
-  line-height: 1.3;
-  display: block;
-}
+
+/* v21 决策：删除 fp-product-locked-overlay 锁标浮层（v9 v14 模糊+锁标都拆掉，证据链全部可读） */
 /* v8 极简：products-head 边框更淡 + 间距缩小 */
 .fp-products-head {
   margin-bottom: 20rpx;
@@ -1928,7 +1686,7 @@ function goHistory() {
   letter-spacing: 1rpx;
 }
 .fp-disc-line {
-  font-size: 22rpx;
+  font-size: 24rpx;
   color: #8B8B8B;
   line-height: 1.8;
   display: block;
@@ -2072,7 +1830,7 @@ function goHistory() {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  font-size: 22rpx;
+  font-size: 24rpx;
   color: #5A6473;
   letter-spacing: 0.5rpx;
   text {
@@ -2089,7 +1847,7 @@ function goHistory() {
   margin-top: 8rpx;
   padding-top: 12rpx;
   border-top: 1rpx dashed rgba(15, 27, 45, 0.1);
-  font-size: 22rpx;
+  font-size: 24rpx;
   color: #5A6473;
   letter-spacing: 0.5rpx;
 }
@@ -2263,7 +2021,7 @@ function goHistory() {
   margin-right: 4rpx;
   background: transparent;
   color: #8C6F36;
-  font-size: 22rpx;
+  font-size: 24rpx;
   letter-spacing: 0.5rpx;
   border: none;
   border-bottom: 1rpx solid rgba(201, 169, 110, 0.4);
@@ -2276,7 +2034,7 @@ function goHistory() {
   border-top: 1rpx dashed rgba(201, 169, 110, 0.3);
 }
 .fp-bank-focus-foot-eyebrow {
-  font-size: 20rpx;
+  font-size: 24rpx;
   color: #8B8B8B;
   letter-spacing: 0.5rpx;
   font-style: italic;
@@ -2343,7 +2101,7 @@ function goHistory() {
 }
 .fp-chat-empty-t {
   font-family: $ff-base;
-  font-size: 22rpx;
+  font-size: 24rpx;
   color: #8B8B8B;
   letter-spacing: 2rpx;
   margin-bottom: 24rpx;

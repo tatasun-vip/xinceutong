@@ -101,23 +101,96 @@ fi
 # 3) 部署 web 静态
 echo -e "\n==> 3) 同步 web 静态到 $WEB_DIR ..."
 mkdir -p "$WEB_DIR"
-if [ -d /tmp/xincetong-new/xincetong-web-dist ]; then
+if [ -d /tmp/xincetong-new/xincetong-web/dist ]; then
+  rm -rf "$WEB_DIR"/*
+  cp -r /tmp/xincetong-new/xincetong-web/dist/. "$WEB_DIR/"
+  echo "  ✅ web 静态部署完成"
+elif [ -d /tmp/xincetong-new/xincetong-web-dist ]; then
+  # 兼容旧版 zip 命名
   rm -rf "$WEB_DIR"/*
   cp -r /tmp/xincetong-new/xincetong-web-dist/. "$WEB_DIR/"
-  echo "  ✅ web 静态部署完成"
+  echo "  ✅ web 静态部署完成（旧版路径）"
 else
   echo -e "  ${YELLOW}⚠️  无 web 静态产物${NC}"
 fi
 
 # 4) 部署 miniapp h5
 echo -e "\n==> 4) 同步 miniapp h5 到 $WEB_DIR/h5/ ..."
-if [ -d /tmp/xincetong-new/xincetong-miniapp-h5 ]; then
+if [ -d /tmp/xincetong-new/xincetong-miniapp/dist/build/h5 ]; then
+  mkdir -p "$WEB_DIR/h5"
+  rm -rf "$WEB_DIR/h5"/*
+  cp -r /tmp/xincetong-new/xincetong-miniapp/dist/build/h5/. "$WEB_DIR/h5/"
+  echo "  ✅ miniapp h5 部署完成"
+elif [ -d /tmp/xincetong-new/xincetong-miniapp-h5 ]; then
+  # 兼容旧版 zip 命名
   mkdir -p "$WEB_DIR/h5"
   rm -rf "$WEB_DIR/h5"/*
   cp -r /tmp/xincetong-new/xincetong-miniapp-h5/. "$WEB_DIR/h5/"
-  echo "  ✅ miniapp h5 部署完成"
+  echo "  ✅ miniapp h5 部署完成（旧版路径）"
 else
   echo "  (跳过：本次无 h5 产物)"
+fi
+
+# 4.5) v17 银行对齐评分卡改造（2026-09-14）
+#   顺序：先 SQL migration 加列 → 再 init_v17 重写规则 → 再 selfcheck_v17 校验
+#   任何一步失败立即退出，避免半成品状态
+echo -e "\n==> 4.5) v17 银行对齐评分卡改造..."
+
+# 检测 psql（生产 PG 在本地，ssl=disable 已配在 .env）
+if ! command -v psql &> /dev/null; then
+  echo -e "  ${RED}❌ 未安装 psql，跳过 v17 步骤${NC}"
+else
+  # 读 .env 拿 DATABASE_URL
+  if [ -f "$APP_DIR/.env" ]; then
+    set -a; source "$APP_DIR/.env"; set +a
+    DB_URL=${DATABASE_URL:-}
+  fi
+
+  if [ -z "$DB_URL" ]; then
+    echo -e "  ${YELLOW}⚠️  .env 无 DATABASE_URL，跳过 v17 步骤${NC}"
+  else
+    # 4.5.1) 跑 SQL migration（加 3 列 + 3 索引，幂等）
+    # v20 修复：改用 PGPASSWORD 显式鉴权（之前 psql "$DB_URL" 静默失败被吞导致 0003 没真跑）
+    DB_PASS=$(echo "$DB_URL" | sed -n 's|.*://[^:]*:\([^@]*\)@.*|\1|p')
+    DB_USER=$(echo "$DB_URL" | sed -n 's|.*://\([^:]*\):.*|\1|p')
+    DB_HOST=$(echo "$DB_URL" | sed -n 's|.*@\([^:/]*\).*|\1|p')
+    DB_PORT=$(echo "$DB_URL" | sed -n 's|.*:\([0-9]*\)/.*|\1|p')
+    DB_NAME=$(echo "$DB_URL" | sed -n 's|.*/\([^?]*\).*|\1|p')
+    export PGPASSWORD="$DB_PASS"
+
+    for MIGRATION_FILE in 0004_v20_repair.sql 0003_v17_scorecard.sql; do
+      echo "  ==> 跑 SQL migration $MIGRATION_FILE ..."
+      if [ -f "$APP_DIR/sql/migrations/$MIGRATION_FILE" ]; then
+        if psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" -v ON_ERROR_STOP=1 -f "$APP_DIR/sql/migrations/$MIGRATION_FILE" 2>&1 | tail -10; then
+          echo -e "  ${GREEN}✅ $MIGRATION_FILE 完成${NC}"
+        else
+          echo -e "  ${RED}❌ $MIGRATION_FILE 失败，停止部署${NC}"
+          exit 1
+        fi
+      else
+        echo -e "  ${YELLOW}⚠️  $MIGRATION_FILE 不存在，跳过${NC}"
+      fi
+    done
+
+    # 4.5.2) 跑 init_v17_scorecard（清空+重写 143 条规则 + 18 业务专属 + 一票否决）
+    echo "  ==> 4.5.2) 跑 init_v17_scorecard（清空+重写规则）..."
+    cd "$APP_DIR"
+    if source .venv/bin/activate && python -m scripts.init_v17_scorecard 2>&1 | tail -15; then
+      echo -e "  ${GREEN}✅ v17 规则初始化完成${NC}"
+    else
+      echo -e "  ${RED}❌ init_v17_scorecard 失败，停止部署${NC}"
+      exit 1
+    fi
+
+    # 4.5.3) 跑 selfcheck_v17（7+1 项真检查）
+    echo "  ==> 4.5.3) 跑 selfcheck_v17（7+1 项真检查）..."
+    if python -m scripts.selfcheck_v17 2>&1 | tail -20; then
+      echo -e "  ${GREEN}✅ selfcheck_v17 PASS${NC}"
+    else
+      echo -e "  ${RED}❌ selfcheck_v17 失败，停止部署${NC}"
+      exit 1
+    fi
+  fi
 fi
 
 # 5) 重启后端

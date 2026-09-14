@@ -1,9 +1,10 @@
 <!--
   Mine / 我的 - 信测通个人中心
-  v3.4 (2026-09-11): 重写
-    1. tabBar 页面：移除"返回"按钮（tabBar 上 navigateBack 永远无效）
-    2. 完整模块：用户卡 / 数据条 / 功能网格 / 推广员状态 / 关于 / 退出
-    3. 沿用 v3.2 编辑感设计：硬边 / 细线 / 8rpx 网格 / 大留白
+  v3.5 (2026-09-14): 再优化
+    1. 去掉网格"立即测评"（tabBar 首页可直达，冗余）
+    2. 网格从 2×3 改为 5 行编辑感列表（更舒服）
+    3. 网格 5 项：测评历史 / 分享应用 / 推广中心 / 法务咨询 / 联系客服
+    4. 保持硬边 / 细线 / 8rpx 网格 / 大留白
 -->
 <template>
   <view class="mine page-bg">
@@ -84,23 +85,27 @@
       <view class="pcta-btn">立即入驻</view>
     </view>
 
-    <!-- ========== 4. 功能网格（2×3）========== -->
-    <view class="grid">
+    <!-- ========== 4. 功能列表（5 行编辑感，去掉"立即测评"冗余）========== -->
+    <view class="menu">
       <view
-        v-for="(it, i) in gridItems"
-        :key="it.key"
-        class="grid-item"
-        @tap="handleGrid(it)"
+        v-for="(g, i) in gridItems"
+        :key="g.key"
+        class="menu-item"
+        :class="{ 'is-last': i === gridItems.length - 1 }"
+        @tap="handleGrid(g)"
       >
-        <view class="grid-icon">
-          <UiIcon :name="it.icon" :size="44" :color="it.color" />
+        <view class="menu-icon">
+          <UiIcon :name="g.icon" :size="40" :color="g.color" />
         </view>
-        <text class="grid-label">{{ it.label }}</text>
-        <text v-if="it.sub" class="grid-sub">{{ it.sub }}</text>
+        <view class="menu-text-block">
+          <text class="menu-text">{{ g.label }}</text>
+          <text v-if="g.sub" class="menu-sub">{{ g.sub }}</text>
+        </view>
+        <text class="menu-arrow">›</text>
       </view>
     </view>
 
-    <!-- ========== 5. 其他列表（左右滑动 + 右箭头）========== -->
+    <!-- ========== 5. 其他列表（4 项）========== -->
     <view class="menu">
       <view
         v-for="(m, i) in menuItems"
@@ -110,9 +115,11 @@
         @tap="handleMenu(m)"
       >
         <view class="menu-icon">
-          <UiIcon :name="m.icon" :size="36" :color="m.color || '#5A6473'" />
+          <UiIcon :name="m.icon" :size="40" :color="m.color || '#5A6473'" />
         </view>
-        <text class="menu-text">{{ m.text }}</text>
+        <view class="menu-text-block">
+          <text class="menu-text">{{ m.text }}</text>
+        </view>
         <text v-if="m.badge" class="menu-badge">{{ m.badge }}</text>
         <text class="menu-arrow">›</text>
       </view>
@@ -126,11 +133,11 @@
     <!-- ========== 7. 底部版本信息 ========== -->
     <view class="version">
       <text class="version-line">{{ siteStore.brandName }}</text>
-      <text class="version-sub">v3.4 · 模拟测评 · 非银行官方</text>
+      <text class="version-sub">v3.5 · 模拟测评 · 非银行官方</text>
     </view>
 
-    <!-- tabBar 安全区占位（避免被底部 tabBar 遮挡）-->
-    <view class="tabbar-safe" />
+    <!-- ========== Custom Tabbar（v1 删测评，2 tab 居中）========== -->
+    <CustomTabbar />
   </view>
 </template>
 
@@ -139,6 +146,7 @@ import { computed, ref } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
 import ComplianceBar from '@/components/compliance-bar/ComplianceBar.vue'
 import UiIcon from '@/components/ui-icon/ui-icon.vue'
+import CustomTabbar from '@/components/custom-tabbar/CustomTabbar.vue'
 import { useUserStore } from '@/store/user'
 import { usePromoterStore } from '@/store/promoter'
 import { useAssessmentStore } from '@/store/assessment'
@@ -214,7 +222,7 @@ const promoterStatusText = computed(() => {
   return '未入驻'
 })
 
-// ============ 网格入口（2×3）============
+// ============ 功能列表（5 行，去掉"立即测评"——tabBar 首页直达）============
 type IconName =
   | 'check' | 'bank' | 'chart' | 'lock' | 'shield' | 'handshake' | 'star'
   | 'arrow-right' | 'arrow-down' | 'arrow-up' | 'arrow-left' | 'doc' | 'wallet'
@@ -231,11 +239,6 @@ interface GridItem {
   action: () => void
 }
 const gridItems = computed<GridItem[]>(() => [
-  {
-    key: 'assess', icon: 'chart', label: '立即测评',
-    sub: '6 大产品独立测算', color: '#0B2545',
-    action: () => uni.switchTab({ url: '/pages/assess/type' }),
-  },
   {
     key: 'history', icon: 'history', label: '测评历史',
     sub: totalCount.value > 0 ? `共 ${totalCount.value} 次` : '暂无记录',
@@ -422,7 +425,7 @@ function handleMenu(m: MenuItem) {
 }
 .user-role {
   font-family: $ff-mono;
-  font-size: 20rpx;
+  font-size: 24rpx;
   color: $accent;
   letter-spacing: 2rpx;
   padding: 4rpx 12rpx;
@@ -448,14 +451,14 @@ function handleMenu(m: MenuItem) {
 }
 .user-uid-label {
   font-family: $ff-mono;
-  font-size: 20rpx;
+  font-size: 24rpx;
   color: rgba(184, 149, 84, 0.7);
   letter-spacing: 4rpx;
   font-weight: 500;
 }
 .user-uid {
   font-family: $ff-mono;
-  font-size: 22rpx;
+  font-size: 24rpx;
   color: rgba(255, 255, 255, 0.85);
   letter-spacing: 1rpx;
 }
@@ -517,14 +520,14 @@ function handleMenu(m: MenuItem) {
 }
 .pc-eyebrow {
   font-family: $ff-mono;
-  font-size: 22rpx;
+  font-size: 24rpx;
   color: $accent;
   letter-spacing: 4rpx;
   font-weight: 500;
 }
 .pc-status {
   font-family: $ff-mono;
-  font-size: 22rpx;
+  font-size: 24rpx;
   letter-spacing: 2rpx;
   padding: 4rpx 12rpx;
   border: 1rpx solid currentColor;
@@ -554,7 +557,7 @@ function handleMenu(m: MenuItem) {
   font-variant-numeric: tabular-nums;
 }
 .pc-label {
-  font-size: 22rpx;
+  font-size: 24rpx;
   color: $text-sub;
   letter-spacing: 1rpx;
 }
@@ -607,7 +610,7 @@ function handleMenu(m: MenuItem) {
   letter-spacing: 1rpx;
 }
 .pcta-sub {
-  font-size: 22rpx;
+  font-size: 24rpx;
   color: $text-sub;
   letter-spacing: 0.5rpx;
 }
@@ -622,45 +625,19 @@ function handleMenu(m: MenuItem) {
   flex-shrink: 0;
 }
 
-/* ========== 4. 功能网格 ========== */
-.grid {
-  background: $card;
-  margin: 32rpx 32rpx 0;
-  padding: 16rpx 0;
-  display: grid;
-  grid-template-columns: 1fr 1fr 1fr;
-}
-.grid-item {
+/* ========== 4. 功能列表（5 行编辑感，v3.5 替代原 2×3 网格）========== */
+.menu-text-block {
+  flex: 1;
   display: flex;
   flex-direction: column;
-  align-items: center;
-  gap: 8rpx;
-  padding: 24rpx 16rpx;
-  border-right: 1rpx solid $border-light;
-  border-bottom: 1rpx solid $border-light;
-  &:nth-child(3n) { border-right: none; }
-  &:nth-last-child(-n+3) { border-bottom: none; }
+  gap: 4rpx;
+  min-width: 0;
 }
-.grid-icon {
-  width: 80rpx;
-  height: 80rpx;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  margin-bottom: 4rpx;
-}
-.grid-label {
-  font-size: 26rpx;
-  color: $primary;
-  letter-spacing: 1rpx;
-  font-weight: 500;
-}
-.grid-sub {
-  font-size: 20rpx;
+.menu-sub {
+  font-size: 24rpx;
   color: $text-weak;
   letter-spacing: 0.5rpx;
-  text-align: center;
-  line-height: 1.3;
+  line-height: 1.4;
 }
 
 /* ========== 5. 列表入口 ========== */
@@ -674,6 +651,8 @@ function handleMenu(m: MenuItem) {
   align-items: center;
   padding: 32rpx 0;
   border-bottom: 1rpx solid $border-light;
+  transition: background 150ms ease-out;
+  &:active { background: rgba(15, 35, 64, 0.03); }
   &.is-last { border-bottom: none; }
 }
 .menu-icon {
@@ -683,16 +662,18 @@ function handleMenu(m: MenuItem) {
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  margin-right: 16rpx;
+  margin-right: 24rpx;
 }
 .menu-text {
-  flex: 1;
-  font-size: 28rpx;
+  font-family: $ff-serif;
+  font-size: 30rpx;
+  font-weight: 500;
   color: $text-main;
-  letter-spacing: 0.5rpx;
+  letter-spacing: 1rpx;
+  line-height: 1.3;
 }
 .menu-badge {
-  font-size: 20rpx;
+  font-size: 24rpx;
   color: $text-weak;
   letter-spacing: 1rpx;
   margin-right: 8rpx;
@@ -728,20 +709,17 @@ function handleMenu(m: MenuItem) {
 }
 .version-line {
   font-family: $ff-serif;
-  font-size: 22rpx;
+  font-size: 24rpx;
   color: $text-weak;
   letter-spacing: 4rpx;
   font-weight: 500;
 }
 .version-sub {
-  font-size: 20rpx;
+  font-size: 24rpx;
   color: $text-weak;
   letter-spacing: 1rpx;
   font-family: $ff-mono;
 }
 
-/* tabBar 安全区 */
-.tabbar-safe {
-  height: 64rpx;
-}
+/* tabBar 安全区由 CustomTabbar 自带 env(safe-area-inset-bottom)，此处不再占位 */
 </style>

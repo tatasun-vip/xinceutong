@@ -289,26 +289,30 @@ def _fix_one_sentence(
     has_projection: bool,
 ) -> str:
     """
-    修正文案：必须包含 level 必含 token，不包含 forbidden token。
-    若不满足，重写为该 level 的标准文案。
+    修正文案：level 严格驱动文案，杜绝 level ↔ 通过率 ↔ 优化数字 之间的矛盾。
+    规则：
+      - B 级固定 "良好"，不再因 pass_probability 切换措辞
+      - 0 个问题但文案说"优化 N 个(N>0)" → 重写为"无明显短板"
+      - C/D/E 文案保持按 has_projection 区分
+    pass_probability 仅作为辅助标签（卡片显示），不参与文案生成。
     """
-    # level 必含 token
+    # level 必含 token（B 必含"良好"；D/E 必含"较弱/暂缓"；C 含"一般"）
     required = {
         "S": ["优质", "申请"],
         "A": ["优质", "申请"],
         "B": ["良好"],
-        "C": ["一般", "优化"],
-        "D": ["较弱", "优化"],
-        "E": ["暂缓", "优化"],
+        "C": ["一般"],
+        "D": ["较弱"],
+        "E": ["暂缓"],
     }
-    # level 必不含 token
+    # level 必不含 token（禁止乐观词出现在弱 level 文案里）
     forbidden = {
-        "S": ["暂缓", "不建议", "需先优化", "基本符合"],
-        "A": ["暂缓", "不建议", "需先优化", "基本符合"],
-        "B": ["暂缓", "不建议", "需先优化", "基本符合"],
-        "C": ["优质", "极佳", "直接申请", "基本符合"],
-        "D": ["优质", "极佳", "良好", "直接申请", "基本符合", "通过率较高"],
-        "E": ["可直接申请", "良好", "通过率较高", "优质", "基本符合"],
+        "S": ["暂缓", "不建议", "需先优化", "基本符合", "通过率偏低"],
+        "A": ["暂缓", "不建议", "需先优化", "基本符合", "通过率偏低"],
+        "B": ["暂缓", "不建议", "需先优化", "基本符合", "通过率偏低", "尚可"],
+        "C": ["优质", "极佳", "直接申请", "良好", "通过率较高"],
+        "D": ["优质", "极佳", "良好", "直接申请", "通过率较高", "通过率高"],
+        "E": ["可直接申请", "良好", "通过率较高", "通过率高", "优质"],
     }
 
     # 检查是否一致
@@ -324,7 +328,7 @@ def _fix_one_sentence(
             if token in text:
                 needs_fix = True
                 break
-    # 0 问题但文案说"优化 N 个"
+    # 0 问题但文案说"优化 N 个(N>0)" —— 矛盾
     if n_total == 0 and "优化" in text:
         import re
         m = re.search(r"优化\s*(\d+)\s*个", text)
@@ -334,20 +338,28 @@ def _fix_one_sentence(
     if not needs_fix:
         return text
 
-    # 重写为该 level 的标准文案
+    # ====== 重写：level 严格驱动文案 ======
+    # S/A：优质可直接申请
     if level in ("S", "A"):
         return f"您的资质已属{level}级优质，可直接申请"
+    # B：固定"良好"措辞，不再因 pass_probability 切换
     if level == "B":
-        if pass_prob in ("高", "中高"):
-            return "您的资质良好，可优先选择通过率较高的产品申请"
-        return f"您的资质尚可，建议先优化 {n_total} 个细节再申请"
+        if n_total == 0:
+            return "您的资质良好，可直接申请"
+        return "您的资质良好，可优先选择通过率较高的产品申请"
+    # C：资质一般 + 优化建议
     if level == "C":
+        if n_total == 0:
+            return "您的资质一般，保持当前状态可直接申请"
         if has_projection:
             return f"您的资质一般，先优化 {n_total} 个问题，预计通过率可提升"
         return f"您的资质一般，建议先优化 {n_total} 项指标再申请"
+    # D：资质较弱
     if level == "D":
+        if n_total == 0:
+            return "目前 D 级较弱，可尝试申请"
         if has_projection:
-            return f"目前 {level} 级较弱，先优化 {n_total} 个问题，预计可提升至 C 级"
-        return f"目前 {level} 级较弱，建议先优化 {n_total} 项关键指标再申请"
-    # E
+            return f"目前 D 级较弱，先优化 {n_total} 个问题，预计可提升至 C 级"
+        return f"目前 D 级较弱，建议先优化 {n_total} 项关键指标再申请"
+    # E：建议暂缓
     return f"建议暂缓申请，先优化 {n_total} 个核心问题"

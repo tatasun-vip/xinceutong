@@ -8,5 +8,17 @@
   },
   "dependencies": {
     "html2canvas": "^1.4.1"
+  },
+  "devDependencies": {
+    "@dcloudio/uni-app": "^2.0.2-5020420260813001",
+    "@dcloudio/uni-cli-shared": "^2.0.2-5020420260813001",
+    "@dcloudio/uni-components": "^3.0.0-alpha-3000020210521001",
+    "@dcloudio/uni-h5": "^2.0.2-5020420260813001",
+    "@dcloudio/uni-mp-weixin": "^2.0.2-5020420260813001",
+    "@dcloudio/vite-plugin-uni": "^3.0.0-alpha-3000020210521001",
+    "@vitejs/plugin-vue": "^5.1.4",
+    "sass": "^1.79.4",
+    "vite": "^5.4.8",
+    "vue": "^3.5.10"
   }
 }

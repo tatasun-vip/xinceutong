@@ -199,6 +199,10 @@
           <text class="confirm-val">{{ store.step4?.recent_3month_queries || '-' }}</text>
         </view>
         <view class="confirm-row">
+          <text class="confirm-label">近 6 月查询</text>
+          <text class="confirm-val">{{ store.step4?.recent_6month_queries || '-' }}</text>
+        </view>
+        <view class="confirm-row">
           <text class="confirm-label">近 2 年逾期</text>
           <text class="confirm-val">{{ store.step4?.overdue_2year || '-' }}</text>
         </view>

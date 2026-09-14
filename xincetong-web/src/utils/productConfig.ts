@@ -1,16 +1,16 @@
 /**
  * utils/productConfig.ts
  *
- * 6 大产品独立品牌色 + icon 配置（A2 深度证据链设计）
+ * v13 增量：icon 从 emoji 改 SVG 名称（与 miniapp 同源 SSOT）
  *
  * 设计原则：
  *  - 每产品一个独立色 + 浅色背景 + 线性 SVG icon，让 6 卡一眼看出区别
- *  - icon 名对应 components/ui-icon/ui-icon.vue 里的 SVG（替代之前 emoji）
- *  - 颜色与 uni-globals.scss 同步，TS 端给 vue 模板用
+ *  - icon 名对应 ui-icon 里的 SVG（替代之前 emoji）
+ *  - 颜色与 miniapp productConfig.ts 保持完全一致（双端同源）
  *  - levelColors 给 6 卡共享的 S/A/B/C/D/E 等级色
  *
- * 修改颜色：改这里 + uni-globals.scss 同步
- * 修改 icon：改这里 + 确认 ui-icon.vue 已加对应 name
+ * 修改颜色：这里 + miniapp 同步
+ * 修改 icon：这里 + 确认 ui-icon.vue 已加对应 name
  */
 
 export type ProductIconName =
@@ -38,7 +38,7 @@ export const DEFAULT_PRODUCT_COLOR: ProductColor = {
   color: '#5A6473', bg: '#ECEFF4', text: '#1A1A1A', icon: 'chart',
 }
 
-// 评分等级色（6 卡共享）
+// 评分等级色（6 卡共享；v8 极简金色系，与 miniapp 一致）
 export const LEVEL_COLORS: Record<string, { color: string; bg: string; label: string }> = {
   S: { color: '#B89554', bg: '#FAF3E3', label: '极佳' },
   A: { color: '#2C7A4B', bg: '#E5F2EB', label: '优秀' },
@@ -58,6 +58,15 @@ export const PAYWALL_COLORS = {
   lock:     '#5A6473',
 }
 
+// 通过率色（v8 极简：3 色金/中灰/暗棕）
+export const PASS_PROB_COLOR: Record<string, string> = {
+  '高':   '#C9A96E',
+  '中高': '#B89554',
+  '中':   '#8B7E5E',
+  '低':   '#6B7280',
+  '极低': '#4A4A4A',
+}
+
 // 工具函数：安全取产品色（未知 code 自动兜底）
 export function getProductColor(code: string | null | undefined): ProductColor {
   if (!code) return DEFAULT_PRODUCT_COLOR
@@ -68,4 +77,19 @@ export function getProductColor(code: string | null | undefined): ProductColor {
 export function getLevelColor(level: string | null | undefined) {
   if (!level) return DEFAULT_LEVEL_COLOR
   return LEVEL_COLORS[level] || DEFAULT_LEVEL_COLOR
+}
+
+// 严重度色（v9 增量：M2 1/N 锁标用）
+export const SEVERITY_COLORS: Record<string, string> = {
+  high: '#9B2226',  // 高严重度 → 暗红
+  mid:  '#B25E00',  // 中严重度 → 暗橙
+  low:  '#B89554',  // 低严重度 → 金棕
+}
+
+// 严重度标签
+export function severityLabel(sev?: string): string {
+  if (sev === 'high') return '高严重度'
+  if (sev === 'mid') return '中严重度'
+  if (sev === 'low') return '低严重度'
+  return '一般'
 }

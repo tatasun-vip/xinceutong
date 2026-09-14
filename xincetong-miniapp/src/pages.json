@@ -144,13 +144,13 @@
     "backgroundTextStyle": "light"
   },
   "tabBar": {
+    "custom": true,
     "color": "#999999",
     "selectedColor": "#1B3A6B",
     "backgroundColor": "#FFFFFF",
     "borderStyle": "white",
     "list": [
       { "pagePath": "pages/index/index",     "text": "首页" },
-      { "pagePath": "pages/assess/type",     "text": "测评" },
       { "pagePath": "pages/mine/index",      "text": "我的" }
     ]
   },

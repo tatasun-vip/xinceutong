@@ -99,6 +99,7 @@ import { useAssessmentStore, HistoryItem } from '@/store/assessment'
 import { useUserStore } from '@/store/user'
 import { formatDate } from '@/utils/format'
 import { pageView, track } from '@/utils/track'
+import { hasPaidToken, getPaywallUrl } from '@/utils/paywall'
 
 const assessStore = useAssessmentStore()
 const userStore   = useUserStore()
@@ -164,7 +165,13 @@ function openResult(it: HistoryItem) {
 }
 
 function goAssess() {
-  uni.switchTab({ url: '/pages/assess/type' })
+  // v22 决策：进入测评前先弹 9.9 付费墙（付完才进入答题）
+  if (!hasPaidToken()) {
+    uni.navigateTo({ url: getPaywallUrl('history', 'personal') })
+    return
+  }
+  // v1：assess/type 不再是 tab 页（tabBar 删了测评），改 redirectTo
+  uni.redirectTo({ url: '/pages/assess/type' })
 }
 </script>
 

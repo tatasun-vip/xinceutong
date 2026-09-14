@@ -97,6 +97,13 @@ export interface ProductResult {
   improve_vars?: Array<{ var: string; current: string; best: string; delta: number }>
   realistic_limit_min?: number
   realistic_limit_max?: number
+  /**
+   * v22+ 增量：基于 narrative SSOT 派生的"改善建议 hint"
+   *   - 来源：improve_vars top 1 → 口语化总结
+   *   - 与 not_recommend_reason 互补：前者"为什么不能办"，后者"如何能办"
+   *   - D/C 级会填充；S/A/B 级留空（无需给改善建议）
+   */
+  improve_hint?: string
 }
 
 /**

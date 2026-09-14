@@ -142,7 +142,16 @@ export const LOAN_COUNT_OPTIONS = [
 export const RECENT_3M_QUERIES_OPTIONS = [
   { label: '0-2 次', desc: '查询较少' },
   { label: '3-5 次', desc: '查询适中' },
-  { label: '6 次以上', desc: '查询过多，建议暂缓' },
+  // v22 加强：6次以上是一票否决，描述强化
+  { label: '6 次以上', desc: '央行一票否决，几乎所有银行拒贷' },
+] as const
+
+// v22 新增：近 6 月查询（央行硬指标 > 10 = 拒贷）
+export const RECENT_6M_QUERIES_OPTIONS = [
+  { label: '0-3 次', desc: '查询稀少（加分）' },
+  { label: '4-6 次', desc: '查询适中' },
+  { label: '7-10 次', desc: '查询较多' },
+  { label: '10 次以上', desc: '央行一票否决，几乎所有银行拒贷' },
 ] as const
 
 export const OVERDUE_2Y_OPTIONS = [

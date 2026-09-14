@@ -30,6 +30,15 @@ class ScorecardRule(Base):
         nullable=False,
     )
     is_veto: Mapped[int] = mapped_column(SmallInteger, default=0, nullable=False)
+    # v17 新增：3 段式评分（加分 / 扣分 / 一票否决）+ 5 维度权重 + 政策性上限
+    # is_deduction: 0=加分（命中即加 score）1=扣分（命中即减 score，等同在归一化里 -score）
+    is_deduction: Mapped[int] = mapped_column(SmallInteger, default=0, nullable=False)
+    # dimension: 5 维度之一 credit/debt/asset/personal/public/misc
+    #   5 维度满分：信用历史 30 + 偿债能力 30 + 资产负债 20 + 个人特征 15 + 公共信息 5 = 100
+    dimension: Mapped[str] = mapped_column(String(16), default="misc", nullable=False)
+    # policy_cap: 命中此规则后 final_score 不能超过此等级上界
+    #   例：白户 C(54) / 无公积金 B(69) / 关键保障全缺 C(54) / 0 命中 D(39)
+    policy_cap: Mapped[str | None] = mapped_column(String(8), nullable=True)
     sort_order: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     enabled: Mapped[int] = mapped_column(SmallInteger, default=1, nullable=False)
     updated_at: Mapped[datetime] = mapped_column(
@@ -41,6 +50,8 @@ class ScorecardRule(Base):
 
     __table_args__ = (
         Index("idx_score_product", "product_type_id"),
+        Index("idx_score_dimension", "dimension"),
+        Index("idx_score_type", "type"),
     )
 
 
@@ -58,6 +69,8 @@ class ValidationRule(Base):
         default="warning",
         nullable=False,
     )
+    # v17 新增：纠错规则也分加扣分（0=提醒 1=扣分提醒）
+    is_deduction: Mapped[int] = mapped_column(SmallInteger, default=0, nullable=False)
     enabled: Mapped[int] = mapped_column(SmallInteger, default=1, nullable=False)
 
 

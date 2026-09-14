@@ -15,6 +15,15 @@
   <view class="report-page">
     <ComplianceBar />
 
+    <!-- 顶部 sticky nav-bar（返回上一级 + 标题，与 free.vue 同款视觉） -->
+    <view class="rp-nav-bar">
+      <view class="rp-nav-back" @tap="goBack" hover-class="rp-nav-back-hover">
+        <text class="rp-nav-back-arrow">‹</text>
+      </view>
+      <view class="rp-nav-title">完整报告</view>
+      <view class="rp-nav-spacer" />
+    </view>
+
     <view v-if="loading" class="loading-state">
       <view class="loading-spinner" />
       <view class="loading-text">加载中</view>
@@ -319,20 +328,29 @@
         <view class="rp-section-head">
           <text class="rp-section-eyebrow">PRODUCTS DETAIL</text>
           <text class="rp-section-title">各产品独立模拟结果</text>
-          <text class="rp-section-sub">基于当前状态 · ⭐ 标识最适合您的产品</text>
+          <text class="rp-section-sub">基于当前状态 · 最适合您的产品会以徽章标记</text>
         </view>
         <view
           v-for="p in report.product_results"
           :key="p.product_code"
           :class="['rp-product-wrap', p.product_code]"
         >
-          <!-- 顶部条：icon + 产品名 + 等级 chip + ⭐推荐 -->
+          <!-- 顶部条：icon + 产品名 + 等级 chip + 推荐 -->
           <view class="rp-product-head">
-            <view class="rp-product-icon">{{ getProductColor(p.product_code).icon }}</view>
+            <view class="rp-product-icon">
+              <UiIcon
+                :name="getProductColor(p.product_code).icon"
+                :size="40"
+                :color="getProductColor(p.product_code).color"
+              />
+            </view>
             <view class="rp-product-head-body">
               <view class="rp-product-name-row">
                 <text class="rp-product-name">{{ p.product_name }}</text>
-                <text v-if="p.best_for_user" class="rp-product-star">⭐ 推荐</text>
+                <view v-if="p.best_for_user" class="rp-product-star">
+                  <UiIcon name="star-fill" :size="20" color="#C9A96E" />
+                  <text>推荐</text>
+                </view>
               </view>
               <view v-if="p.product_subtitle" class="rp-product-sub">{{ p.product_subtitle }}</view>
             </view>
@@ -371,7 +389,10 @@
           <view class="rp-product-evidence">
             <!-- 命中加分 -->
             <view v-if="p.hit_rules && p.hit_rules.length" class="rp-ev-block">
-              <view class="rp-ev-label">✓ 命中加分</view>
+              <view class="rp-ev-label">
+                <UiIcon name="check-circle" :size="24" :color="getProductColor(p.product_code).color" />
+                <text>命中加分</text>
+              </view>
               <view v-for="(r, k) in p.hit_rules" :key="k" class="rp-ev-row">
                 <text class="rp-ev-rule">{{ r.rule }}</text>
                 <text class="rp-ev-score" :style="{ color: getProductColor(p.product_code).color }">+{{ r.score }}</text>
@@ -379,7 +400,10 @@
             </view>
             <!-- 扣分项 -->
             <view v-if="p.low_rules && p.low_rules.length" class="rp-ev-block">
-              <view class="rp-ev-label">✗ 扣分项</view>
+              <view class="rp-ev-label">
+                <UiIcon name="x-circle" :size="24" color="#9B2226" />
+                <text>扣分项</text>
+              </view>
               <view v-for="(r, k) in p.low_rules" :key="k" class="rp-ev-row">
                 <text class="rp-ev-rule">{{ r.rule }}</text>
                 <text class="rp-ev-score rp-ev-score-neg">{{ r.score }}</text>
@@ -387,12 +411,26 @@
             </view>
             <!-- 不推荐原因 -->
             <view v-if="p.not_recommend_reason" class="rp-ev-block">
-              <view class="rp-ev-label">⚠ 不推荐原因</view>
+              <view class="rp-ev-label">
+                <UiIcon name="warning" :size="24" color="#B25E00" />
+                <text>不推荐原因</text>
+              </view>
               <view class="rp-ev-reason">{{ p.not_recommend_reason }}</view>
+            </view>
+            <!-- v22+ 改善建议 hint（SSOT 派生：improve_vars top1 口语化总结） -->
+            <view v-if="p.improve_hint" class="rp-ev-block rp-ev-hint">
+              <view class="rp-ev-label">
+                <UiIcon name="arrow-up" :size="24" color="#2A9D8F" />
+                <text>如何改善</text>
+              </view>
+              <view class="rp-ev-reason">{{ p.improve_hint }}</view>
             </view>
             <!-- 提分建议 -->
             <view v-if="p.improve_vars && p.improve_vars.length" class="rp-ev-block">
-              <view class="rp-ev-label">↑ 提分建议</view>
+              <view class="rp-ev-label">
+                <UiIcon name="arrow-up" :size="24" :color="getProductColor(p.product_code).color" />
+                <text>提分建议</text>
+              </view>
               <view v-for="(v, k) in p.improve_vars" :key="k" class="rp-ev-row">
                 <text class="rp-ev-rule">{{ v.current }} → {{ v.best }}</text>
                 <text class="rp-ev-score" :style="{ color: getProductColor(p.product_code).color }">+{{ v.delta }}</text>
@@ -400,11 +438,17 @@
             </view>
             <!-- 风险标签 / 优势（保留 report.vue 旧字段） -->
             <view v-if="p.risk_tags && p.risk_tags.length" class="rp-ev-block">
-              <view class="rp-ev-label">⚠ 风险标签</view>
+              <view class="rp-ev-label">
+                <UiIcon name="warning" :size="24" color="#B25E00" />
+                <text>风险标签</text>
+              </view>
               <view v-for="(r, k) in p.risk_tags" :key="k" class="rp-ev-tag">{{ r }}</view>
             </view>
             <view v-if="p.advantages && p.advantages.length" class="rp-ev-block">
-              <view class="rp-ev-label">✓ 优势</view>
+              <view class="rp-ev-label">
+                <UiIcon name="check-circle" :size="24" color="#2E7D32" />
+                <text>优势</text>
+              </view>
               <view v-for="(a, k) in p.advantages" :key="k" class="rp-ev-tag">{{ a }}</view>
             </view>
           </view>
@@ -441,7 +485,9 @@
           <text class="rp-strat-raw-text">{{ report.apply_strategy }}</text>
         </view>
         <view class="rp-strat-warning">
-          <text class="rp-strat-warning-icon">⚠</text>
+          <view class="rp-strat-warning-icon">
+            <UiIcon name="warning" :size="28" color="#EF6C00" />
+          </view>
           <text class="rp-strat-warning-text">不建议同时申请多个产品，会产生多次硬查询反而降低通过率</text>
         </view>
       </view>
@@ -450,6 +496,15 @@
       <view class="rp-disclaimer">
         <text class="rp-disc-title">关于本报告</text>
         <text class="rp-disc-line">{{ report.disclaimer || defaultDisclaimer }}</text>
+      </view>
+
+      <!-- v17 增量：返回首页 CTA（避免用户付费后无出口） -->
+      <view class="rp-back-home-wrap">
+        <view class="rp-back-home" @tap="goHome" hover-class="rp-back-home-hover">
+          <text class="rp-back-home-icon">⌂</text>
+          <text class="rp-back-home-text">返回首页</text>
+        </view>
+        <text class="rp-back-home-tip">本次评估已保存到「我的 · 测评历史」，可随时回看</text>
       </view>
     </template>
   </view>
@@ -667,6 +722,28 @@ onMounted(async () => {
   }
 })
 
+// v17 增量：返回上一级（与 free.vue goBack 逻辑一致）
+function goBack() {
+  const pages = getCurrentPages() as any[]
+  if (pages.length > 1) {
+    uni.navigateBack({ delta: 1 })
+  } else {
+    // 当前栈只有 report 一个（直接通过 url 打开），回到首页
+    uni.switchTab({
+      url: '/pages/index/index',
+      fail: () => uni.reLaunch({ url: '/pages/index/index' }),
+    })
+  }
+}
+
+// v17 增量：返回首页（switchTab 优先，兜底 reLaunch）
+function goHome() {
+  uni.switchTab({
+    url: '/pages/index/index',
+    fail: () => uni.reLaunch({ url: '/pages/index/index' }),
+  })
+}
+
 function formatTime(iso?: string) {
   if (!iso) return ''
   const d = new Date(iso)
@@ -683,6 +760,101 @@ function formatTime(iso?: string) {
   min-height: 100vh;
   background: #F5F3EF;
   padding-bottom: 80rpx;
+}
+
+/* === v17 顶部 nav-bar（sticky 浮在 hero 上方） === */
+.rp-nav-bar {
+  position: sticky;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 88rpx;
+  padding: 0 24rpx;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  z-index: 100;
+  background: rgba(245, 243, 239, 0.92);
+  -webkit-backdrop-filter: blur(20rpx);
+  backdrop-filter: blur(20rpx);
+  border-bottom: 1rpx solid rgba(15, 27, 45, 0.06);
+}
+.rp-nav-back {
+  width: 56rpx;
+  height: 56rpx;
+  background: rgba(15, 27, 45, 0.04);
+  border: 1rpx solid rgba(15, 27, 45, 0.1);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s;
+}
+.rp-nav-back-hover {
+  background: rgba(15, 27, 45, 0.1);
+  transform: scale(0.94);
+}
+.rp-nav-back-arrow {
+  color: #0F1B2D;
+  font-size: 40rpx;
+  line-height: 1;
+  font-weight: 300;
+  margin-top: -4rpx;
+}
+.rp-nav-title {
+  color: #0F1B2D;
+  font-size: 30rpx;
+  font-weight: 600;
+  letter-spacing: 2rpx;
+}
+.rp-nav-spacer {
+  width: 56rpx;
+  height: 56rpx;
+}
+
+/* === v17 返回首页 CTA（拇指可达，金色主按钮） === */
+.rp-back-home-wrap {
+  margin: 48rpx 32rpx 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16rpx;
+}
+.rp-back-home {
+  width: 100%;
+  max-width: 560rpx;
+  height: 96rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12rpx;
+  background: linear-gradient(135deg, #C9A96E 0%, #B89554 100%);
+  color: #FFFFFF;
+  border-radius: 48rpx;
+  box-shadow: 0 8rpx 24rpx rgba(201, 169, 110, 0.3);
+  transition: all 0.15s;
+}
+.rp-back-home-hover {
+  transform: translateY(2rpx);
+  box-shadow: 0 4rpx 12rpx rgba(201, 169, 110, 0.25);
+  opacity: 0.95;
+}
+.rp-back-home-icon {
+  font-size: 40rpx;
+  line-height: 1;
+  font-weight: 600;
+}
+.rp-back-home-text {
+  font-family: $ff-base;
+  font-size: 30rpx;
+  font-weight: 700;
+  letter-spacing: 4rpx;
+}
+.rp-back-home-tip {
+  font-size: 24rpx;
+  color: #8B8B8B;
+  letter-spacing: 0.5rpx;
+  text-align: center;
 }
 .loading-state { padding: 200rpx 0; text-align: center; }
 .loading-spinner {
@@ -704,7 +876,7 @@ function formatTime(iso?: string) {
 }
 .rp-section-eyebrow {
   font-family: $ff-base;
-  font-size: 20rpx;
+  font-size: 24rpx;
   color: #C9A96E;
   letter-spacing: 4rpx;
   font-weight: 500;
@@ -720,7 +892,7 @@ function formatTime(iso?: string) {
   margin-top: 8rpx;
 }
 .rp-section-sub {
-  font-size: 22rpx;
+  font-size: 24rpx;
   color: #8B8B8B;
   letter-spacing: 0.5rpx;
   margin-top: 8rpx;
@@ -748,13 +920,13 @@ function formatTime(iso?: string) {
 }
 .rp-hero-eyebrow {
   font-family: $ff-base;
-  font-size: 22rpx;
+  font-size: 24rpx;
   color: #C9A96E;
   letter-spacing: 4rpx;
   font-weight: 500;
 }
 .rp-hero-no, .rp-hero-time {
-  font-size: 22rpx;
+  font-size: 24rpx;
   color: rgba(255, 255, 255, 0.55);
   letter-spacing: 1rpx;
   display: block;
@@ -791,7 +963,7 @@ function formatTime(iso?: string) {
 .rp-verdict-body { flex: 1; min-width: 0; }
 .rp-verdict-eyebrow {
   font-family: $ff-base;
-  font-size: 20rpx;
+  font-size: 24rpx;
   color: #8B8B8B;
   letter-spacing: 3rpx;
   margin-bottom: 8rpx;
@@ -819,7 +991,7 @@ function formatTime(iso?: string) {
 }
 .rp-overall-eyebrow {
   font-family: $ff-base;
-  font-size: 20rpx;
+  font-size: 24rpx;
   color: #C9A96E;
   letter-spacing: 4rpx;
   font-weight: 500;
@@ -848,7 +1020,7 @@ function formatTime(iso?: string) {
   border: 1rpx solid rgba(15, 27, 45, 0.04);
 }
 .rp-overall-label {
-  font-size: 22rpx;
+  font-size: 24rpx;
   color: #8B8B8B;
   letter-spacing: 0.5rpx;
 }
@@ -885,21 +1057,21 @@ function formatTime(iso?: string) {
 }
 .rp-issue-num {
   font-family: $ff-base;
-  font-size: 22rpx;
+  font-size: 24rpx;
   font-weight: 700;
   color: #8B8B8B;
   letter-spacing: 1rpx;
 }
 .rp-issue-tag {
   font-family: $ff-base;
-  font-size: 20rpx;
+  font-size: 24rpx;
   color: #FFFFFF;
   padding: 3rpx 10rpx;
   letter-spacing: 1rpx;
   font-weight: 600;
 }
 .rp-issue-cat {
-  font-size: 22rpx;
+  font-size: 24rpx;
   color: #8B8B8B;
   letter-spacing: 1rpx;
   padding: 2rpx 10rpx;
@@ -931,10 +1103,10 @@ function formatTime(iso?: string) {
 .rp-issue-impact-pill-icon {
   color: #C62828;
   font-weight: 700;
-  font-size: 20rpx;
+  font-size: 24rpx;
 }
 .rp-issue-impact-pill-text {
-  font-size: 22rpx;
+  font-size: 24rpx;
   color: #0F1B2D;
   font-weight: 500;
   letter-spacing: 0.3rpx;
@@ -996,7 +1168,7 @@ function formatTime(iso?: string) {
   margin-bottom: 2rpx;
 }
 .rp-deep-meta {
-  font-size: 20rpx;
+  font-size: 24rpx;
   color: #8B8B8B;
   letter-spacing: 0.5rpx;
   display: block;
@@ -1038,7 +1210,7 @@ function formatTime(iso?: string) {
 .rp-deep-block-body { flex: 1; min-width: 0; }
 .rp-deep-block-label {
   font-family: $ff-base;
-  font-size: 20rpx;
+  font-size: 24rpx;
   color: #8B8B8B;
   letter-spacing: 1rpx;
   display: block;
@@ -1089,11 +1261,11 @@ function formatTime(iso?: string) {
   border-left: 2rpx solid #C9A96E;
 }
 .rp-deep-when-icon {
-  font-size: 20rpx;
+  font-size: 24rpx;
   color: #C9A96E;
 }
 .rp-deep-when-text {
-  font-size: 22rpx;
+  font-size: 24rpx;
   color: #0F1B2D;
   letter-spacing: 0.5rpx;
   font-weight: 500;
@@ -1197,7 +1369,7 @@ function formatTime(iso?: string) {
 }
 .rp-path-effect-tag {
   font-family: $ff-base;
-  font-size: 20rpx;
+  font-size: 24rpx;
   color: #C9A96E;
   letter-spacing: 1rpx;
   font-weight: 700;
@@ -1242,7 +1414,7 @@ function formatTime(iso?: string) {
 }
 .rp-proj-col-eyebrow {
   font-family: $ff-base;
-  font-size: 20rpx;
+  font-size: 24rpx;
   color: #8B8B8B;
   letter-spacing: 4rpx;
   font-weight: 600;
@@ -1267,7 +1439,7 @@ function formatTime(iso?: string) {
   &:last-child { border-bottom: none; }
 }
 .rp-proj-key {
-  font-size: 20rpx;
+  font-size: 24rpx;
   color: #8B8B8B;
   letter-spacing: 0.5rpx;
 }
@@ -1294,7 +1466,7 @@ function formatTime(iso?: string) {
 }
 .rp-proj-arrow-text {
   font-family: $ff-base;
-  font-size: 20rpx;
+  font-size: 24rpx;
   color: #C9A96E;
   letter-spacing: 1rpx;
   font-weight: 600;
@@ -1381,7 +1553,6 @@ function formatTime(iso?: string) {
   margin-bottom: 20rpx;
 }
 .rp-product-icon {
-  font-size: 44rpx;
   width: 64rpx;
   height: 64rpx;
   display: flex;
@@ -1390,7 +1561,7 @@ function formatTime(iso?: string) {
   background: rgba(255, 255, 255, 0.7);
   border-radius: 8rpx;
   flex-shrink: 0;
-  line-height: 1;
+  line-height: 0;
 }
 .rp-product-head-body {
   flex: 1;
@@ -1414,8 +1585,11 @@ function formatTime(iso?: string) {
   display: block;
 }
 .rp-product-star {
+  display: inline-flex;
+  align-items: center;
+  gap: 4rpx;
   font-family: $ff-base;
-  font-size: 20rpx;
+  font-size: 24rpx;
   color: #C9A96E;
   font-weight: 700;
   letter-spacing: 0.5rpx;
@@ -1426,7 +1600,7 @@ function formatTime(iso?: string) {
 }
 .rp-product-sub {
   font-family: $ff-base;
-  font-size: 20rpx;
+  font-size: 24rpx;
   color: #5A6473;
   letter-spacing: 0.5rpx;
   line-height: 1.3;
@@ -1436,7 +1610,7 @@ function formatTime(iso?: string) {
   flex-shrink: 0;
   padding: 6rpx 14rpx;
   font-family: $ff-base;
-  font-size: 20rpx;
+  font-size: 24rpx;
   font-weight: 700;
   letter-spacing: 0.5rpx;
   border: 1rpx solid;
@@ -1459,13 +1633,13 @@ function formatTime(iso?: string) {
 }
 .rp-product-score-unit {
   font-family: $ff-base;
-  font-size: 22rpx;
+  font-size: 24rpx;
   color: #5A6473;
   letter-spacing: 1rpx;
 }
 .rp-product-score-pass {
   font-family: $ff-base;
-  font-size: 22rpx;
+  font-size: 24rpx;
   color: #5A6473;
   letter-spacing: 0.5rpx;
   margin-left: auto;
@@ -1484,7 +1658,7 @@ function formatTime(iso?: string) {
 }
 .rp-product-limit-label {
   font-family: $ff-base;
-  font-size: 22rpx;
+  font-size: 24rpx;
   color: #5A6473;
   letter-spacing: 1rpx;
   flex-shrink: 0;
@@ -1500,7 +1674,7 @@ function formatTime(iso?: string) {
 }
 .rp-product-limit-actual {
   font-family: $ff-base;
-  font-size: 20rpx;
+  font-size: 24rpx;
   color: #5A6473;
   letter-spacing: 1rpx;
   padding: 4rpx 10rpx;
@@ -1525,12 +1699,14 @@ function formatTime(iso?: string) {
 }
 .rp-ev-label {
   font-family: $ff-base;
-  font-size: 20rpx;
+  font-size: 24rpx;
   color: #5A6473;
   letter-spacing: 1rpx;
   font-weight: 600;
   margin-bottom: 6rpx;
-  display: block;
+  display: flex;
+  align-items: center;
+  gap: 6rpx;
 }
 .rp-ev-row {
   display: flex;
@@ -1538,7 +1714,7 @@ function formatTime(iso?: string) {
   gap: 8rpx;
   padding: 2rpx 0;
   font-family: $ff-base;
-  font-size: 22rpx;
+  font-size: 24rpx;
   line-height: 1.5;
 }
 .rp-ev-rule {
@@ -1550,7 +1726,7 @@ function formatTime(iso?: string) {
   white-space: nowrap;
 }
 .rp-ev-score {
-  font-size: 22rpx;
+  font-size: 24rpx;
   font-weight: 700;
   flex-shrink: 0;
   font-family: $ff-base;
@@ -1560,15 +1736,25 @@ function formatTime(iso?: string) {
 }
 .rp-ev-reason {
   font-family: $ff-base;
-  font-size: 22rpx;
+  font-size: 24rpx;
   color: #1A1A1A;
   line-height: 1.5;
   letter-spacing: 0.3rpx;
 }
+/* v22+ 改善建议 hint 块（SSOT 派生：与 not_recommend_reason 互补，绿色调） */
+.rp-ev-hint {
+  background: rgba(42, 157, 143, 0.06);
+  border-left: 4rpx solid #2A9D8F;
+  padding: 8rpx 12rpx;
+  border-radius: 6rpx;
+}
+.rp-ev-hint .rp-ev-reason {
+  color: #1F4D47;
+}
 .rp-ev-tag {
   display: inline-block;
   font-family: $ff-base;
-  font-size: 20rpx;
+  font-size: 24rpx;
   color: #5A6473;
   padding: 4rpx 12rpx;
   background: rgba(15, 27, 45, 0.04);
@@ -1605,7 +1791,7 @@ function formatTime(iso?: string) {
 }
 .rp-strat-priority {
   font-family: $ff-base;
-  font-size: 22rpx;
+  font-size: 24rpx;
   font-weight: 700;
   color: #8B8B8B;
   letter-spacing: 1rpx;
@@ -1634,14 +1820,14 @@ function formatTime(iso?: string) {
 }
 .rp-strat-pass {
   font-family: $ff-base;
-  font-size: 22rpx;
+  font-size: 24rpx;
   font-weight: 700;
   letter-spacing: 1rpx;
   padding: 2rpx 10rpx;
   background: rgba(0, 0, 0, 0.04);
 }
 .rp-strat-reason {
-  font-size: 22rpx;
+  font-size: 24rpx;
   color: #8B8B8B;
   letter-spacing: 0.3rpx;
   line-height: 1.6;
@@ -1657,9 +1843,11 @@ function formatTime(iso?: string) {
   border-left: 3rpx solid #EF6C00;
 }
 .rp-strat-warning-icon {
-  color: #EF6C00;
-  font-size: 24rpx;
-  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32rpx;
+  height: 32rpx;
   flex-shrink: 0;
 }
 .rp-strat-warning-text {
@@ -1699,7 +1887,7 @@ function formatTime(iso?: string) {
   letter-spacing: 1rpx;
 }
 .rp-disc-line {
-  font-size: 22rpx;
+  font-size: 24rpx;
   color: #8B8B8B;
   line-height: 1.8;
   display: block;
@@ -1739,7 +1927,7 @@ function formatTime(iso?: string) {
 }
 .rp-m5-day {
   font-family: $ff-base;
-  font-size: 20rpx;
+  font-size: 24rpx;
   color: #8B8B8B;
   letter-spacing: 2rpx;
   margin-bottom: 8rpx;
@@ -1777,7 +1965,7 @@ function formatTime(iso?: string) {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  font-size: 20rpx;
+  font-size: 24rpx;
   color: #8B8B8B;
   letter-spacing: 0.3rpx;
   margin-bottom: 6rpx;

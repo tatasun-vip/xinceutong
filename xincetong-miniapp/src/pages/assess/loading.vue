@@ -139,15 +139,16 @@ async function submit() {
       created_at: new Date().toISOString(),
     })
 
-    // 等动画跑完一圈（约 600ms），再跳结果页
+    // 等动画跑完一圈（约 600ms），再跳 9.9 付费层
+    // v21 决策：取消 free/pay 二段式，submit 完成后直接弹 9.9 支付层
     setTimeout(() => {
-      const targetUrl = `/pages/result/free?id=${res.assessment_id}`
+      const targetUrl = `/pages/result/pay?id=${res.assessment_id}`
       uni.redirectTo({
         url: targetUrl,
         fail: (err) => {
-          // result/free 不是 tabBar 页，redirectTo 失败一般是页面栈问题或参数错误
-          console.error('跳结果页失败', err)
-          uni.showModal({ title: '查看结果失败', content: '请到「我的」- 测评历史中查看', showCancel: false })
+          // pay 不是 tabBar 页，redirectTo 失败一般是页面栈问题或参数错误
+          console.error('跳支付页失败', err)
+          uni.showModal({ title: '支付页打开失败', content: '请到「我的」- 测评历史中重新进入', showCancel: false })
         },
       })
     }, 600)

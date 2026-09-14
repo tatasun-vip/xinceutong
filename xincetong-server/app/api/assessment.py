@@ -21,6 +21,19 @@ from app.services.product_engine import (
     calculate_scores_by_product,
     synthesize_overall_score,
 )
+from app.services.narrative import (
+    LEVEL_NARRATIVE,
+    LEVEL_PASS_PROB,
+    LEVEL_RATE_DESC,
+    ISSUE_TEMPLATES,
+    SUGGESTION_TEMPLATES,
+    RISK_ADVANTAGE_MUTEX,
+    build_narrative_package,
+    consistency_check,
+    apply_mutex,
+    is_vetoed,
+    level_for as narrative_level_for,
+)
 from app.services.validation_engine import validate_input
 from app.services.shared_config import (
     build_ui_config as _shared_ui_config,
@@ -35,7 +48,26 @@ from app.services.bank_scorecard import (
 )
 from app.utils.id_generator import gen_report_no
 from app.utils.logger import logger
+from app.utils.money import income_value, norm
 from app.utils.response import ok
+
+
+def _has_norm(data: dict, var: str, val: str) -> bool:
+    """v15a: dict 字段值 == 比较前 norm 化（去空格/全角转半角/小写）
+
+    前端选项值常有空格（如 "5000以下" vs "5000 以下"），直接 == 会漏判。
+    """
+    if not val:
+        return False
+    return norm(data.get(var)) == norm(val)
+
+
+def _in_norm(data: dict, var: str, vals: tuple[str, ...] | list[str]) -> bool:
+    """v15a: dict 字段值 in [多个] 比较前 norm 化"""
+    if not vals:
+        return False
+    nv = norm(data.get(var))
+    return any(nv == norm(v) for v in vals)
 
 router = APIRouter()
 
@@ -135,8 +167,9 @@ async def submit_assessment(
         raise ParamException(f"未找到 user_type={type_} 的产品配置，请先执行 init_product_types.py")
 
     # 2. 综合分（推荐产品权重 ×1.5）
+    # v23.1 修复：传 input_data 触发 v22 弱资质折扣逻辑（修原 line 1240 NameError）
     overall_score, overall_level, limit_min, limit_max, rate_min, rate_max, pass_prob = (
-        synthesize_overall_score(product_results)
+        synthesize_overall_score(product_results, input_data)
     )
 
     # 3. 收集风险标签/优势（从所有产品的标签去重）
@@ -265,12 +298,10 @@ async def submit_assessment(
     from app.services.report_auditor import audit_and_fix_report
     annual_income = 0
     try:
-        income_str = input_data.get("monthly_income", "")
-        income_map = {
-            "5000 以下": 30000, "5000-1万": 90000, "1-2万": 180000,
-            "2-3万": 300000, "3-5万": 480000, "5万以上": 720000,
-        }
-        annual_income = income_map.get(income_str, 0) * 12
+        # v15b 修复：删除内联 income_map（key 不一致问题），统一用 money.income_value
+        # money.INCOME_MIDPOINT 的 key 已经是去空格版本（"3万-5万"），norm 后能匹配前端
+        # 前端 "3 万-5 万" → norm → "3万-5万" → INCOME_MIDPOINT.get → 40000 → * 12 = 480000
+        annual_income = income_value(input_data.get("monthly_income", "")) * 12
     except Exception:
         pass
 
@@ -479,6 +510,22 @@ _ISSUE_TEMPLATES: list[dict] = [
         "fix_fields": {"recent_3month_queries": "0-2次"},
         "input_match": {"recent_3month_queries": ["6次以上"]},
     },
+    # v22 新增：近 6 月查询模板
+    {
+        "key": "近 6 个月查询",
+        "category": "征信",
+        "title": "近半年征信查询过多",
+        "what": "近 6 个月内，您的征信报告上有 10 次以上贷款 / 信用卡的「硬查询」记录。",
+        "why": "近 6 月硬查询 > 10 次是央行征信硬指标，5 大行普遍一票否决。比近 3 月更宽松的限值主要是因为查询自然衰减需要时间。",
+        "impact_prob": "通过概率几乎降至 0（央行一票否决）",
+        "impact_amount": "额度评估直接拒绝",
+        "impact_rate": "无法申请",
+        "how": "立即停止所有贷款、信用卡、分期申请；180 天后查询记录按月滚动消失，影响自然消除。",
+        "when": "未来 180 天",
+        "result": "180 天后查询痕迹淡出，可重新申请。",
+        "fix_fields": {"recent_6month_queries": "0-3次"},
+        "input_match": {"recent_6month_queries": ["10次以上"]},
+    },
     {
         "key": "信用卡使用率",
         "category": "征信",
@@ -672,7 +719,8 @@ def _aggregate_top_issues(
         matched = tpl["key"] in text_blob
         if not matched and tpl.get("input_match"):
             for field, allowed in tpl["input_match"].items():
-                if input_data.get(field) in allowed:
+                # v15a 修复：input_match 的 in 比较前 norm 化（避免 "6次以上" vs "6次 以上" 不匹配）
+                if _in_norm(input_data, field, tuple(allowed)):
                     matched = True
                     break
 
@@ -746,17 +794,20 @@ def _build_one_sentence(
     """
     生成"一句话结论"（报告顶部 + 付费按钮文案共用）
 
-    优先级（按综合级别严格区分，避免"基本符合"等自相矛盾措辞）：
-      1. E 级 或 有 high 严重问题 → "建议暂缓，先优化 N 个核心问题"
-      2. D 级（较弱）            → 诚实告诉用户"目前较弱、通过率偏低"，给出具体方向
-      3. C 级（一般）            → "资质一般，建议先优化再申请"
-      4. B 级（良好）            → "资质良好，可尝试申请通过率较高的产品"
-      5. S/A 级                  → "资质优质，可直接申请"
+    v22+ 规范化：调用 narrative.LEVEL_NARRATIVE SSOT 派生银行客户经理口径
+      1. E 级 或 有 high 严重问题 → 暂缓
+      2. D 级（较弱）→ 建议先优化
+      3. C 级（一般）→ 建议先优化
+      4. B 级（良好）→ 可优先选择
+      5. S/A 级    → 优质 + 可直接申请
     """
     n_high = sum(1 for i in top_issues if i.get("severity") == "high")
     n_mid = sum(1 for i in top_issues if i.get("severity") == "mid")
     n_total = len(top_issues)
-    n_low = sum(1 for i in top_issues if i.get("severity") == "low")
+
+    # SSOT 派生：用 LEVEL_NARRATIVE.verdict 作为基础，再叠加 issue 数量
+    level_info = LEVEL_NARRATIVE.get(overall_level, LEVEL_NARRATIVE["C"])
+    base_verdict = level_info["verdict"]
 
     # ====== L1: E 级 或 high 严重问题 → 暂缓 ======
     if overall_level == "E" or n_high >= 1:
@@ -768,10 +819,10 @@ def _build_one_sentence(
         # 有可改善推演：给用户"通过率可提升"的预期
         if projection and projection.get("score", 0) > 0 and projection.get("level") not in ("", "E", "D"):
             target = projection.get("level", "")
-            return f"目前 {overall_level} 级较弱，先优化 {n_total} 个问题，预计可达 {target} 级"
-        if n_mid >= 1 or n_low >= 1:
-            return f"目前 {overall_level} 级较弱，先优化 {n_total} 个问题后再申请更稳妥"
-        return f"目前 {overall_level} 级较弱，建议先优化 {n_total} 项关键指标再申请"
+            return f"目前 D 级较弱，先优化 {n_total} 个问题，预计可达 {target} 级"
+        if n_mid >= 1:
+            return f"目前 D 级较弱，先优化 {n_total} 个问题后再申请更稳妥"
+        return "目前资质较弱，建议先优化关键指标后再申请"
 
     # ====== L3: C 级（一般）→ 有提升空间 ======
     if overall_level == "C":
@@ -786,9 +837,13 @@ def _build_one_sentence(
             return "您的资质良好，可优先选择通过率较高的产品申请"
         return f"您的资质尚可，但通过率偏低，建议先优化 {n_total} 个细节再申请"
 
-    # ====== L5: S/A 级（优质）→ 自信推荐 ======
+    # ====== L5: S/A 级（优质）→ 自信 + 埋钩子 ======
+    # 不要只说"可直接申请"——S/A 客户感受不到付费价值，必须告诉他"还有 N 个非阻塞风险可优化"
     if overall_level in ("S", "A"):
-        return "您的资质已属优质，可直接申请"
+        risk_mid_low = sum(1 for i in top_issues if i.get("severity") in ("mid", "low"))
+        if risk_mid_low >= 1:
+            return f"您的资质已属优质，可直接申请；但仍有 {risk_mid_low} 项非阻塞风险可能影响额度上限"
+        return base_verdict
 
     # ====== 兜底（理论上不会到这里）======
     return f"您的资质处于 {overall_level} 级，建议参考完整报告"
@@ -925,6 +980,22 @@ def _build_suggestions(
     suggestions: list[dict[str, str]] = []
     seen_actions: set[str] = set()
 
+    # ========================================================================
+    # Phase 0: SSOT 模板优先 (narrative.SUGGESTION_TEMPLATES)
+    # v22+ 规范化：所有"立即-1-3 月-3-6 月"建议统一从 SSOT 派生
+    # ========================================================================
+    normed_input = {k: (str(v).replace(" ", "").replace("\u3000", "") if v else "") for k, v in (input_data or {}).items()}
+
+    def _ssot_match(template: dict) -> bool:
+        """检查 SSOT 模板的 input_match 是否命中"""
+        match_rules = template.get("input_match", {})
+        for field, allowed in match_rules.items():
+            current = normed_input.get(field, "")
+            allowed_norm = [str(a).replace(" ", "") for a in allowed]
+            if current not in allowed_norm:
+                return False
+        return True
+
     def add(period: str, action: str, reason: str, source: str) -> None:
         """去重添加建议（action 主文本相同则跳过）"""
         key = action.strip()[:32]
@@ -935,24 +1006,32 @@ def _build_suggestions(
             {"period": period, "action": action, "reason": reason, "source": source}
         )
 
+    for tpl in SUGGESTION_TEMPLATES:
+        if not _ssot_match(tpl):
+            continue
+        # SSOT 模板的 reason 含"我行 A 卡模型"——把 bank_label 替换为具体银行
+        reason = tpl["reason"].replace("我行", bank_label).replace("该行", bank_label)
+        add(tpl["phase"], tpl["action"], reason, tpl["source"])
+
     # ========================================================================
     # Phase 1: 立即（致命问题 — 命中就一票否决）
     # ========================================================================
-    if input_data.get("current_overdue") == "有":
+    # v15a 修复：所有 input_data.get() == / in 比较改 _has_norm / _in_norm（前端空格/全角兼容）
+    if _has_norm(input_data, "current_overdue", "有"):
         add(
             "立即",
             "结清当前所有逾期欠款，并在还清后次月向央行申请更新征信报告",
             f"{bank_label}的准入模型把「当前逾期」列为硬性一票否决项，未结清前任何申请都会被系统秒拒。",
             "征信修复",
         )
-    if input_data.get("serial_overdue") == "有":
+    if _has_norm(input_data, "serial_overdue", "有"):
         add(
             "立即",
             "联系贷款机构说明情况并制定结清计划，避免「连续逾期」标记继续累计",
             f"连续 60 天以上逾期在 {bank_label} 模型中权重极高，会被判定为「严重信用瑕疵」，需 24 个月才能逐步淡化。",
             "征信修复",
         )
-    if input_data.get("bad_status") == "有":
+    if _has_norm(input_data, "bad_status", "有"):
         add(
             "立即",
             "到央行打印详版征信报告，确认次级/可疑/损失账户来源并结清",
@@ -963,28 +1042,35 @@ def _build_suggestions(
     # ========================================================================
     # Phase 2: 1-3 个月（短期优化 — 高频查询 / 信用卡使用率 / 在贷笔数）
     # ========================================================================
-    if "近 3 个月查询过多" in risks or input_data.get("recent_3month_queries") == "6次以上":
+    if "近 3 个月查询过多" in risks or _has_norm(input_data, "recent_3month_queries", "6次以上"):
         add(
             "1-3 个月",
             "停止申请任何贷款 / 信用卡 / 分期，让征信报告上「贷款审批」硬查询自然衰减",
             f"{bank_label}的 A 卡对近 3 个月硬查询非常敏感，6 次以上几乎会被风控拦截；查询记录按月滚动消失。",
             "征信修复",
         )
-    if "信用卡使用率过高" in risks or input_data.get("credit_card_usage") == "80%以上":
+    if "近 6 个月查询过多" in risks or _has_norm(input_data, "recent_6month_queries", "10次以上"):  # v22 新增
+        add(
+            "3-6 个月",
+            "继续停申贷款 / 信用卡 / 分期，6 月查询也需要从峰值滚动衰减",
+            f"{bank_label}对 6 月查询同样敏感，>10 次 = 一票否决；必须让硬查询自然衰减后再申请。",
+            "征信修复",
+        )
+    if "信用卡使用率过高" in risks or _has_norm(input_data, "credit_card_usage", "80%以上"):
         add(
             "1-3 个月",
             "还部分信用卡欠款，把使用率压到 50% 以下（建议在账单日前还）",
             f"信用卡使用率超 80% 在 {bank_label}模型里等于「高资金需求 + 潜在违约」，是评分掉档的重要扣分项。",
             "征信修复",
         )
-    if "在贷笔数偏多" in risks or input_data.get("loan_count") == "5笔以上":
+    if "在贷笔数偏多" in risks or _has_norm(input_data, "loan_count", "5笔以上"):
         add(
             "1-3 个月",
             "优先结清金额最小的 1-2 笔在贷，把笔数降到 3 笔以内",
             f"{bank_label}的 A 卡在「在贷笔数」上做了非线性惩罚，3 笔以内属于正常区间，5 笔以上直接拉低一档。",
             "征信修复",
         )
-    if "近 2 年有逾期" in risks or input_data.get("overdue_2year") in ("1-3次", "3次以上"):
+    if "近 2 年有逾期" in risks or _in_norm(input_data, "overdue_2year", ("1-3次", "3次以上")):
         add(
             "1-3 个月",
             "近 2 年的逾期记录无法消除，但保持 24 个月无逾期可显著淡化影响",
@@ -995,21 +1081,21 @@ def _build_suggestions(
     # ========================================================================
     # Phase 3: 3-6 个月（中期建设 — 白户/工作年限/收入流水）
     # ========================================================================
-    if "白户风险（无信贷记录）" in risks or input_data.get("white_account") == "是":
+    if "白户风险（无信贷记录）" in risks or _has_norm(input_data, "white_account", "是"):
         add(
             "3-6 个月",
             "先申请 1 张信用卡并正常使用 3-6 个月，建立信贷历史",
             f"白户在 {bank_label}模型中只能拿到「基础分」，因缺乏还款历史无法被系统信任；建好首张卡后再申请额度会显著提升。",
             "征信修复",
         )
-    if "工作年限较短" in weaks or input_data.get("work_years") == "1年以下":
+    if "工作年限较短" in weaks or _has_norm(input_data, "work_years", "1年以下"):
         add(
             "3-6 个月",
             "保持当前工作至满 1 年再申请，期间让社保 / 公积金持续缴存",
             f"{bank_label}的「工作稳定性」维度 1 年是分水岭，1 年以下在评分卡里被压一档；满 1 年后该维度满权重。",
             "收入证明",
         )
-    if "月收入偏低" in weaks or input_data.get("monthly_income") == "5000以下":
+    if "月收入偏低" in weaks or _has_norm(input_data, "monthly_income", "5000以下"):
         add(
             "3-6 个月",
             "通过副业 / 兼职 / 提升社保缴费基数来增加「可验证收入」",
@@ -1021,7 +1107,7 @@ def _build_suggestions(
     # Phase 4: 银行特性优化（公积金/代发/房/小微 — 按目标银行特色生成）
     # ========================================================================
     # 公积金
-    if "公积金" in focus_kw and input_data.get("housing_fund") in ("无", "最低基数"):
+    if "公积金" in focus_kw and _in_norm(input_data, "housing_fund", ("无", "最低基数")):
         if "公积金连续缴存" not in advs:
             add(
                 "3-6 个月",
@@ -1030,7 +1116,7 @@ def _build_suggestions(
                 "资产配置",
             )
     # 代发
-    if "代发工资" in focus_kw and input_data.get("payroll") == "否":
+    if "代发工资" in focus_kw and _has_norm(input_data, "payroll", "否"):
         if "工资代发" not in advs:
             add(
                 "1-3 个月",
@@ -1040,14 +1126,14 @@ def _build_suggestions(
             )
     # 房产
     if "房产" in focus_kw:
-        if input_data.get("house") == "无房":
+        if _has_norm(input_data, "house", "无房"):
             add(
                 "持续",
                 "该行最看重房产，无房客户建议优先考虑「建行以外的互联网银行（如微众/网商）」",
                 f"{bank_label}的核心低息产品线（房产抵押贷 / 快贷）以房产为重要准入条件，无房客户走该行通过率会显著低于其他产品。",
                 "申请策略",
             )
-        elif input_data.get("house") == "有按揭" and "本地有房" not in advs:
+        elif _has_norm(input_data, "house", "有按揭") and "本地有房" not in advs:
             add(
                 "3-6 个月",
                 "如有提前还款能力可结清房贷，把「无按揭」作为下一次申请的加分项",
@@ -1079,7 +1165,7 @@ def _build_suggestions(
             "申请策略",
         )
     # 高额度
-    if "高额度" in focus_kw and input_data.get("monthly_income") in ("5000以下", "5000-8000"):
+    if "高额度" in focus_kw and _in_norm(input_data, "monthly_income", ("5000以下", "5000-8000")):
         add(
             "3-6 个月",
             "通过副业 / 兼职 / 经营流水把月可验证收入提升到 1.5 万+",
@@ -1095,7 +1181,7 @@ def _build_suggestions(
             "资产配置",
         )
     # 外汇
-    if "外汇" in focus_kw and input_data.get("housing_fund") in ("无", "最低基数"):
+    if "外汇" in focus_kw and _in_norm(input_data, "housing_fund", ("无", "最低基数")):
         add(
             "持续",
             "该行传统优势是外汇 / 外贸客群，普通工薪客户走该行通过率不一定最优",
@@ -1103,7 +1189,7 @@ def _build_suggestions(
             "申请策略",
         )
     # 通用弱项：储蓄
-    if input_data.get("deposit") == "无":
+    if _has_norm(input_data, "deposit", "无"):
         add(
             "3-6 个月",
             "每月固定储蓄收入的 20-30%，积累 6 个月后能显著提升评分",
@@ -1435,15 +1521,109 @@ async def get_free_result(
 
 
 def _build_free_summary_from_db(a: Assessment) -> str:
+    """v22+ 规范化：基于 narrative.LEVEL_NARRATIVE SSOT 派生银行客户经理口径
+
+    关键设计：
+    1. SSOT 派生：level_info["description"] 严格按等级选模板
+    2. 量化数据：注入实际额度 / 通过率 / 问题数
+    3. 风险信息：诚实指出 top1 原因
+    4. 修复路径：给出 projection 改善后可达等级
+    """
     if not a.score:
         return ""
     limit_lo = (a.limit_min or 0) // 10000
     limit_hi = (a.limit_max or 0) // 10000
-    if a.level in ("S", "A", "B"):
-        return f"您是 {a.level} 级客户，模拟可获额度 {limit_lo}-{limit_hi} 万元，通过率 {a.pass_probability}。"
-    if a.level == "C":
-        return f"您是 {a.level} 级客户，模拟可获额度 {limit_lo}-{limit_hi} 万元，建议优化后再申请。"
-    return f"当前评级 {a.level}，建议先改善条件再申请。"
+    pp = a.pass_probability or "—"
+    level = a.level or "E"
+    issues = a.top_issues or []
+    n_issues = len(issues)
+    top1 = issues[0] if issues else None
+    top1_title = top1.get("title", "") if top1 else ""
+    proj = a.improvement_projection or None
+    proj_level = proj.get("level", "") if proj else ""
+    proj_max = (proj.get("limit_max", 0) or 0) // 10000 if proj else 0
+
+    # SSOT: 从 narrative 派生
+    level_info = LEVEL_NARRATIVE.get(level, LEVEL_NARRATIVE["C"])
+    base_description = level_info["description"]
+    base_recommendation = level_info["recommendation"]
+
+    # ====== S/A 级（优质）：自信 + 埋钩子（"你还有非阻塞风险可优化"）======
+    if level in ("S", "A"):
+        risk_mid = sum(1 for i in issues if i.get("severity") == "mid")
+        risk_low = sum(1 for i in issues if i.get("severity") == "low")
+        risk_n = risk_mid + risk_low
+        if risk_n:
+            return (
+                f"根据我行 A 卡模型综合评估，您属于 {level} 级优质客户，"
+                f"模拟可贷 {limit_lo}-{limit_hi} 万元，综合通过率 {pp}。"
+                f"另有 {risk_n} 项非阻塞风险待优化（完整报告含 {n_issues} 个核心问题深度分析）。"
+            )
+        return (
+            f"根据我行 A 卡模型综合评估，您属于 {level} 级优质客户，"
+            f"模拟可贷 {limit_lo}-{limit_hi} 万元，综合通过率 {pp}。"
+            f"{base_recommendation}，建议查看 6 大产品独立准入对比。"
+        )
+
+    # ====== B 级（良好）：谨慎乐观 + 埋钩子（"细节优化可提升一档"）======
+    if level == "B":
+        if proj_level in ("A", "S") and proj_max > 0:
+            return (
+                f"根据我行 A 卡模型综合评估，您属于 B 级良好客户，"
+                f"模拟可贷 {limit_lo}-{limit_hi} 万元，通过率 {pp}。"
+                f"修复 {n_issues} 个细节问题后预计可达 {proj_level} 级，"
+                f"额度上限可提升至 {proj_max} 万元。"
+            )
+        return (
+            f"根据我行 A 卡模型综合评估，您属于 B 级良好客户，"
+            f"模拟可贷 {limit_lo}-{limit_hi} 万元，通过率 {pp}。"
+            f"{base_recommendation}，完整报告含 {n_issues} 个核心问题诊断 + 6 大产品准入差距表。"
+        )
+
+    # ====== C 级（一般）：强调"修复后改善" + 指出 top1 ======
+    if level == "C":
+        if top1_title:
+            return (
+                f"根据我行 A 卡模型综合评估，您属于 C 级一般客户，"
+                f"模拟可贷 {limit_lo}-{limit_hi} 万元，通过率 {pp}。"
+                f"主要原因为：{top1_title}。修复后预计可达 {proj_level or 'B'} 级。"
+            )
+        return (
+            f"根据我行 A 卡模型综合评估，您属于 C 级一般客户，"
+            f"模拟可贷 {limit_lo}-{limit_hi} 万元，通过率 {pp}。"
+            f"建议先优化 {n_issues} 个核心问题再申请。"
+        )
+
+    # ====== D 级（较弱）：诚实 + 给具体方向 ======
+    if level == "D":
+        if proj and proj_level and proj_max > 0:
+            return (
+                f"根据我行 A 卡模型综合评估，您当前属于 D 级较弱客户，"
+                f"模拟可贷 {limit_lo}-{limit_hi} 万元，通过率 {pp}。"
+                f"修复 {n_issues} 个核心问题后预计可达 {proj_level} 级，"
+                f"额度可从 {limit_lo} 万提升至 {proj_max} 万。"
+            )
+        if top1_title:
+            return (
+                f"根据我行 A 卡模型综合评估，您当前属于 D 级较弱客户，"
+                f"模拟可贷受限，通过率 {pp}。"
+                f"主要原因为：{top1_title}。建议先优化再申请。"
+            )
+        return (
+            f"根据我行 A 卡模型综合评估，您当前属于 D 级较弱客户，"
+            f"模拟可贷 {limit_lo}-{limit_hi} 万元，通过率 {pp}。"
+            f"建议先优化 {n_issues} 项关键指标再申请。"
+        )
+
+    # ====== E 级（极弱 / 不推荐）：诚实拒绝 + 给出修复路径 ======
+    if top1_title:
+        return (
+            f"根据我行 A 卡模型综合评估，当前不满足模拟准入条件。主要原因为：{top1_title}。"
+            f"修复后预计可达 {proj_level or 'D'} 级。"
+        )
+    return (
+        f"根据我行 A 卡模型综合评估，当前评级 {level}，建议先改善 {n_issues} 个关键条件再申请。"
+    )
 
 
 # ============================================================================

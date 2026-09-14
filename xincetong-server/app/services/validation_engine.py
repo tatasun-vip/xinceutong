@@ -46,7 +46,14 @@ async def validate_input(
     try:
         rules = await _load_rules(db)
     except Exception as e:
+        # v20 修复：SELECT 失败会让 asyncpg 的事务进入 aborted 状态，
+        # 后面复用同一连接的 INSERT 会被 abort 拒绝（InFailedSQLTransactionError）。
+        # 这里必须 rollback 清掉 aborted 状态，否则整个 submit 评估会 500。
         logger.error(f"validation: 加载规则失败 {e}")
+        try:
+            await db.rollback()
+        except Exception:
+            pass
         return []
 
     hits: list[dict[str, Any]] = []

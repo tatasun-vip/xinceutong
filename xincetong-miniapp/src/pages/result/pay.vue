@@ -1,8 +1,9 @@
 <!--
   pay.vue · 付费页
   v3.2 重构：信息差驱动付费
-    - 顶部：核心问题高亮 + 严重度 + 影响量化
-    - 中部：改善预期（前后对比）
+  v22 新增：mode=pre-asses 模式（测评前付费墙，付完跳 select-bank 而非 report）
+    - 顶部：核心问题高亮 + 严重度 + 影响量化（仅 post-asses 显示）
+    - 中部：改善预期（前后对比）（仅 post-asses 显示）
     - 下部：3 套定价套餐（单次 / 3次卡 / 月卡）
     - 信任 + 退款 + CTA
 -->
@@ -10,17 +11,23 @@
   <view class="pay-page">
     <ComplianceBar />
 
-    <!-- Hero：紧迫感 -->
+    <!-- Hero：紧迫感（mode 切换文案） -->
     <view class="pay-hero">
-      <view class="pay-hero-badge">UNLOCK FULL REPORT</view>
-      <text class="pay-hero-eyebrow">完整诊断报告</text>
-      <text class="pay-hero-title">解锁您的{{ issueCountText }}</text>
+      <view class="pay-hero-badge">{{ isPreAsses ? 'START ASSESSMENT' : 'UNLOCK FULL REPORT' }}</view>
+      <text class="pay-hero-eyebrow">{{ isPreAsses ? '完整测评通行证' : '完整诊断报告' }}</text>
+      <text class="pay-hero-title">
+        {{ isPreAsses ? '解锁完整测评 + 完整报告' : `解锁您的${issueCountText}` }}
+      </text>
       <view class="pay-hero-line" />
-      <text class="pay-hero-sub">看完整诊断 + 改善路径 + 改善后额度推演</text>
+      <text class="pay-hero-sub">
+        {{ isPreAsses
+          ? '一次性付费 · 24h 内可多次答题 · 含完整诊断报告 + 改善路径'
+          : '看完整诊断 + 改善路径 + 改善后额度推演' }}
+      </text>
     </view>
 
-    <!-- 1. 核心问题高亮（1个已露的 + "还有 N 个隐藏"） -->
-    <view v-if="topIssue" class="pay-issue-card" :style="{ borderLeftColor: topIssue.severity_color }">
+    <!-- 1. 核心问题高亮（1个已露的 + "还有 N 个隐藏"）（仅 post-asses） -->
+    <view v-if="!isPreAsses && topIssue" class="pay-issue-card" :style="{ borderLeftColor: topIssue.severity_color }">
       <view class="pay-issue-head">
         <view class="pay-issue-tag" :style="{ background: topIssue.severity_color }">
           {{ severityLabel(topIssue.severity) }} · 已识别
@@ -43,13 +50,15 @@
         </view>
       </view>
       <view v-if="hiddenCount > 0" class="pay-issue-hidden">
-        <view class="pay-hidden-icon">🔒</view>
+        <view class="pay-hidden-icon">
+          <UiIcon name="lock" :size="24" color="#8B8B8B" />
+        </view>
         <text class="pay-hidden-text">还有 {{ hiddenCount }} 个核心问题未显示</text>
       </view>
     </view>
 
-    <!-- 2. 改善预期（前后对比） -->
-    <view v-if="projection" class="pay-projection-card">
+    <!-- 2. 改善预期（前后对比）（仅 post-asses） -->
+    <view v-if="!isPreAsses && projection" class="pay-projection-card">
       <view class="pay-proj-eyebrow">AFTER 90 DAYS · 改善后预计</view>
       <view class="pay-proj-arrow">
         <view class="pay-proj-col">
@@ -69,7 +78,8 @@
         </view>
       </view>
       <view class="pay-proj-foot">
-        💡 按建议执行 90 天，额度预计提升 {{ formatLimitGap }}
+        <UiIcon name="lightbulb" :size="24" color="#C9A96E" />
+        <text class="pay-proj-foot-text">按建议执行 90 天，额度预计提升 {{ formatLimitGap }}</text>
       </view>
     </view>
 
@@ -80,34 +90,68 @@
         <text class="pay-unlock-title">解锁后您将获得</text>
       </view>
       <view class="pay-unlock-list">
-        <view class="pay-unlock-item">
-          <view class="pay-unlock-num">1</view>
-          <view class="pay-unlock-body">
-            <text class="pay-unlock-item-title">{{ issueCountText }} · 5 维度深度分析</text>
-            <text class="pay-unlock-item-desc">每个问题含「是什么 / 为什么 / 影响 / 怎么改 / 预期」5 维展开</text>
+        <!-- pre-asses 模式：突出"开始测评"价值 -->
+        <template v-if="isPreAsses">
+          <view class="pay-unlock-item">
+            <view class="pay-unlock-num">1</view>
+            <view class="pay-unlock-body">
+              <text class="pay-unlock-item-title">5 步完整测评（30+ 个问题）</text>
+              <text class="pay-unlock-item-desc">覆盖信用 / 资产 / 收入 / 保障 / 公共信息 5 维度</text>
+            </view>
           </view>
-        </view>
-        <view class="pay-unlock-item">
-          <view class="pay-unlock-num">2</view>
-          <view class="pay-unlock-body">
-            <text class="pay-unlock-item-title">30 / 60 / 90 天改善路径</text>
-            <text class="pay-unlock-item-desc">分阶段动作 + 预期效果，知道「坚持多久能看到结果」</text>
+          <view class="pay-unlock-item">
+            <view class="pay-unlock-num">2</view>
+            <view class="pay-unlock-body">
+              <text class="pay-unlock-item-title">6 大产品并行测算</text>
+              <text class="pay-unlock-item-desc">公积金贷 / 工资贷 / 房抵贷 / 装修贷 / 税贷 / 消费贷</text>
+            </view>
           </view>
-        </view>
-        <view class="pay-unlock-item">
-          <view class="pay-unlock-num">3</view>
-          <view class="pay-unlock-body">
-            <text class="pay-unlock-item-title">6 大产品完整对比</text>
-            <text class="pay-unlock-item-desc">含测算逻辑 + 重点变量 + 申请策略</text>
+          <view class="pay-unlock-item">
+            <view class="pay-unlock-num">3</view>
+            <view class="pay-unlock-body">
+              <text class="pay-unlock-item-title">完整诊断报告 + 改善路径</text>
+              <text class="pay-unlock-item-desc">每问题含"是什么 / 为什么 / 影响 / 怎么改 / 预期"5 维展开</text>
+            </view>
           </view>
-        </view>
-        <view class="pay-unlock-item">
-          <view class="pay-unlock-num">4</view>
-          <view class="pay-unlock-body">
-            <text class="pay-unlock-item-title">申请顺序策略</text>
-            <text class="pay-unlock-item-desc">避免 1 次硬查询被浪费，先申请哪个有讲究</text>
+          <view class="pay-unlock-item">
+            <view class="pay-unlock-num">4</view>
+            <view class="pay-unlock-body">
+              <text class="pay-unlock-item-title">24h 内可重复测评</text>
+              <text class="pay-unlock-item-desc">改完资料再测一次，看分提升了多少</text>
+            </view>
           </view>
-        </view>
+        </template>
+        <!-- post-asses 模式：突出"完整报告"价值 -->
+        <template v-else>
+          <view class="pay-unlock-item">
+            <view class="pay-unlock-num">1</view>
+            <view class="pay-unlock-body">
+              <text class="pay-unlock-item-title">{{ issueCountText }} · 5 维度深度分析</text>
+              <text class="pay-unlock-item-desc">每个问题含「是什么 / 为什么 / 影响 / 怎么改 / 预期」5 维展开</text>
+            </view>
+          </view>
+          <view class="pay-unlock-item">
+            <view class="pay-unlock-num">2</view>
+            <view class="pay-unlock-body">
+              <text class="pay-unlock-item-title">30 / 60 / 90 天改善路径</text>
+              <text class="pay-unlock-item-desc">分阶段动作 + 预期效果，知道「坚持多久能看到结果」</text>
+            </view>
+          </view>
+          <view class="pay-unlock-item">
+            <view class="pay-unlock-num">3</view>
+            <view class="pay-unlock-body">
+              <text class="pay-unlock-item-title">6 大产品完整对比</text>
+              <text class="pay-unlock-item-desc">含测算逻辑 + 重点变量 + 申请策略</text>
+            </view>
+          </view>
+          <view class="pay-unlock-item">
+            <view class="pay-unlock-num">4</view>
+            <view class="pay-unlock-body">
+              <text class="pay-unlock-item-title">申请顺序策略</text>
+              <text class="pay-unlock-item-desc">避免 1 次硬查询被浪费，先申请哪个有讲究</text>
+            </view>
+          </view>
+        </template>
       </view>
     </view>
 
@@ -152,7 +196,9 @@
 
     <!-- 6. 退款保障 -->
     <view class="pay-refund">
-      <view class="pay-refund-icon">✓</view>
+      <view class="pay-refund-icon">
+        <UiIcon name="check" :size="32" color="#FFFFFF" />
+      </view>
       <view class="pay-refund-body">
         <text class="pay-refund-title">7 天不满意全额退款</text>
         <text class="pay-refund-desc">我们对自己的报告有信心。觉得没价值联系客服即可退款，无理由。</text>
@@ -167,7 +213,7 @@
         <text class="pay-cta-price-tag">限时 5 折</text>
       </view>
       <button class="pay-cta-btn" :disabled="paying" @tap="handlePay">
-        {{ paying ? '支付中…' : `支付 ¥${activePackage.price} 立即解锁` }}
+        {{ paying ? '支付中…' : (isPreAsses ? `支付 ¥${activePackage.price} 开始测评` : `支付 ¥${activePackage.price} 立即解锁`) }}
       </button>
       <text class="pay-cta-tip">7 天内可申请退款 · 已服务 12.8 万用户</text>
     </view>
@@ -180,6 +226,8 @@ import ComplianceBar from '@/components/compliance-bar/ComplianceBar.vue'
 import { createOrder, mockPay } from '@/api/order'
 import { getFullReport } from '@/api/assessment'
 import { useSiteStore } from '@/store/site'
+import UiIcon from '@/components/ui-icon/ui-icon.vue'
+import { setPaidToken } from '@/utils/paywall'
 
 const siteStore = useSiteStore()
 const paying = ref(false)
@@ -191,6 +239,11 @@ const currentLevel = ref('E')
 const currentScore = ref(0)
 const currentPassProb = ref('极低')
 const selectedPkg = ref('once')
+
+// v22 决策：mode=pre-asses 为测评前付费墙（付完跳 select-bank），否则为原 post-asses 流程
+const isPreAsses = ref(false)
+const fromSource = ref('index')  // 埋点：来源 index / history / type
+const assessType = ref<'personal' | 'business'>('personal')
 
 const LEVEL_COLOR: Record<string, string> = {
   S: '#1B5E20', A: '#2E7D32', B: '#558B2F', C: '#C9A96E', D: '#EF6C00', E: '#C62828',
@@ -253,8 +306,15 @@ onMounted(async () => {
   siteStore.load()
   const pages = getCurrentPages()
   const page = pages[pages.length - 1] as any
-  const id = (page.options?.id || page.$route?.query?.id) as string
+  const opts = page.options || page.$route?.query || {}
+  const id = (opts.id as string) || ''
   assessmentId.value = parseInt(id, 10) || 0
+
+  // v22 解析付费墙模式
+  const mode = (opts.mode as string) || 'post-asses'
+  isPreAsses.value = mode === 'pre-asses'
+  fromSource.value = (opts.from as string) || 'index'
+  assessType.value = ((opts.type as string) === 'business' ? 'business' : 'personal')
 
   if (assessmentId.value) {
     try {
@@ -273,18 +333,31 @@ onMounted(async () => {
 
 async function handlePay() {
   if (paying.value) return
-  if (!assessmentId.value) {
+  // post-asses 模式必须有 assessmentId；pre-asses 模式不需要（只是开通 token）
+  if (!isPreAsses.value && !assessmentId.value) {
     uni.showToast({ title: '测评 ID 缺失', icon: 'none' })
     return
   }
   paying.value = true
   try {
-    const order = await createOrder({ assessment_id: assessmentId.value })
-    await mockPay(order.order_no)
-    uni.showToast({ title: '解锁成功', icon: 'success' })
-    setTimeout(() => {
-      uni.redirectTo({ url: `/pages/result/report?id=${assessmentId.value}` })
-    }, 1000)
+    if (isPreAsses.value) {
+      // v22 pre-asses 模式：直接开通 paid_token（无需后端下单，因为还没测评）
+      // 用 setTimeout 模拟支付动画
+      await new Promise<void>((resolve) => setTimeout(resolve, 800))
+      setPaidToken()
+      uni.showToast({ title: '解锁成功', icon: 'success' })
+      setTimeout(() => {
+        // 跳到 select-bank，开始答题
+        uni.redirectTo({ url: '/pages/assess/select-bank' })
+      }, 1000)
+    } else {
+      const order = await createOrder({ assessment_id: assessmentId.value })
+      await mockPay(order.order_no)
+      uni.showToast({ title: '解锁成功', icon: 'success' })
+      setTimeout(() => {
+        uni.redirectTo({ url: `/pages/result/report?id=${assessmentId.value}` })
+      }, 1000)
+    }
   } catch (e: any) {
     uni.showModal({ title: '支付失败', content: e?.message || '请稍后重试', showCancel: false })
   } finally {
@@ -321,7 +394,7 @@ async function handlePay() {
 .pay-hero-badge {
   display: inline-block;
   font-family: $ff-base;
-  font-size: 20rpx;
+  font-size: 24rpx;
   color: #C9A96E;
   letter-spacing: 4rpx;
   font-weight: 600;
@@ -331,7 +404,7 @@ async function handlePay() {
 }
 .pay-hero-eyebrow {
   font-family: $ff-base;
-  font-size: 22rpx;
+  font-size: 24rpx;
   color: rgba(255, 255, 255, 0.6);
   letter-spacing: 4rpx;
   display: block;
@@ -377,14 +450,14 @@ async function handlePay() {
 }
 .pay-issue-tag {
   font-family: $ff-base;
-  font-size: 20rpx;
+  font-size: 24rpx;
   color: #FFFFFF;
   padding: 4rpx 12rpx;
   letter-spacing: 1rpx;
   font-weight: 600;
 }
 .pay-issue-cat {
-  font-size: 22rpx;
+  font-size: 24rpx;
   color: #8B8B8B;
   letter-spacing: 1rpx;
   padding: 2rpx 12rpx;
@@ -435,12 +508,15 @@ async function handlePay() {
   border: 1rpx dashed rgba(15, 27, 45, 0.2);
 }
 .pay-hidden-icon {
-  font-size: 20rpx;
-  filter: grayscale(1);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28rpx;
+  height: 28rpx;
 }
 .pay-hidden-text {
   font-family: $ff-base;
-  font-size: 22rpx;
+  font-size: 24rpx;
   color: #8B8B8B;
   letter-spacing: 1rpx;
 }
@@ -454,7 +530,7 @@ async function handlePay() {
 }
 .pay-proj-eyebrow {
   font-family: $ff-base;
-  font-size: 20rpx;
+  font-size: 24rpx;
   color: #C9A96E;
   letter-spacing: 4rpx;
   font-weight: 600;
@@ -483,7 +559,7 @@ async function handlePay() {
 }
 .pay-proj-label {
   font-family: $ff-base;
-  font-size: 20rpx;
+  font-size: 24rpx;
   color: #8B8B8B;
   letter-spacing: 2rpx;
 }
@@ -494,7 +570,7 @@ async function handlePay() {
   letter-spacing: 1rpx;
 }
 .pay-proj-meta {
-  font-size: 20rpx;
+  font-size: 24rpx;
   color: #8B8B8B;
   letter-spacing: 0.5rpx;
 }
@@ -504,8 +580,18 @@ async function handlePay() {
   font-weight: 700;
 }
 .pay-proj-foot {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6rpx;
   text-align: center;
-  font-size: 22rpx;
+  font-size: 24rpx;
+  color: #0F1B2D;
+  letter-spacing: 0.5rpx;
+}
+.pay-proj-foot-text {
+  font-family: $ff-base;
+  font-size: 24rpx;
   color: #0F1B2D;
   letter-spacing: 0.5rpx;
 }
@@ -524,7 +610,7 @@ async function handlePay() {
 }
 .pay-unlock-eyebrow {
   font-family: $ff-base;
-  font-size: 20rpx;
+  font-size: 24rpx;
   color: #C9A96E;
   letter-spacing: 4rpx;
   font-weight: 500;
@@ -577,7 +663,7 @@ async function handlePay() {
   letter-spacing: 0.5rpx;
 }
 .pay-unlock-item-desc {
-  font-size: 22rpx;
+  font-size: 24rpx;
   color: #8B8B8B;
   letter-spacing: 0.3rpx;
   line-height: 1.6;
@@ -598,7 +684,7 @@ async function handlePay() {
 }
 .pay-pricing-eyebrow {
   font-family: $ff-base;
-  font-size: 20rpx;
+  font-size: 24rpx;
   color: #C9A96E;
   letter-spacing: 4rpx;
   font-weight: 500;
@@ -638,7 +724,7 @@ async function handlePay() {
     text-align: center;
     background: #C9A96E;
     color: #FFFFFF;
-    font-size: 20rpx;
+    font-size: 24rpx;
   }
 }
 .pay-pkg-flag {
@@ -648,7 +734,7 @@ async function handlePay() {
   background: #C9A96E;
   color: #FFFFFF;
   font-family: $ff-base;
-  font-size: 20rpx;
+  font-size: 24rpx;
   padding: 4rpx 16rpx;
   letter-spacing: 1rpx;
   font-weight: 600;
@@ -662,7 +748,7 @@ async function handlePay() {
   margin-bottom: 8rpx;
 }
 .pay-pkg-desc {
-  font-size: 22rpx;
+  font-size: 24rpx;
   color: #8B8B8B;
   letter-spacing: 0.5rpx;
   margin-bottom: 16rpx;
@@ -676,7 +762,7 @@ async function handlePay() {
 }
 .pay-pkg-each {
   font-family: $ff-base;
-  font-size: 22rpx;
+  font-size: 24rpx;
   color: #8B8B8B;
   letter-spacing: 1rpx;
 }
@@ -713,7 +799,7 @@ async function handlePay() {
   line-height: 1;
 }
 .pay-trust-label {
-  font-size: 22rpx;
+  font-size: 24rpx;
   color: #8B8B8B;
   letter-spacing: 1rpx;
   display: block;
@@ -733,8 +819,9 @@ async function handlePay() {
 .pay-refund-icon {
   width: 48rpx;
   height: 48rpx;
-  line-height: 48rpx;
-  text-align: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   background: #2E7D32;
   color: #FFFFFF;
   font-size: 28rpx;
@@ -753,7 +840,7 @@ async function handlePay() {
   letter-spacing: 0.5rpx;
 }
 .pay-refund-desc {
-  font-size: 22rpx;
+  font-size: 24rpx;
   color: #8B8B8B;
   line-height: 1.6;
   display: block;
@@ -797,7 +884,7 @@ async function handlePay() {
 }
 .pay-cta-price-tag {
   font-family: $ff-base;
-  font-size: 20rpx;
+  font-size: 24rpx;
   color: #C9A96E;
   padding: 2rpx 10rpx;
   background: rgba(201, 169, 110, 0.1);
@@ -825,7 +912,7 @@ async function handlePay() {
 }
 .pay-cta-tip {
   font-family: $ff-base;
-  font-size: 20rpx;
+  font-size: 24rpx;
   color: #8B8B8B;
   letter-spacing: 1rpx;
   display: block;

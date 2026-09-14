@@ -51,24 +51,33 @@ echo -e "===================================${NC}\n"
 echo "==> 1) 检测 SSH 鉴权..."
 
 SSH_AUTH_METHOD="key"
-if ! ssh -o BatchMode=yes -o ConnectTimeout=5 -p $CVM_PORT $CVM_USER@$CVM_IP "echo 'SSH KEY OK'" 2>/dev/null; then
+if ! ssh -o BatchMode=yes -o ConnectTimeout=5 -o StrictHostKeyChecking=accept-new -p $CVM_PORT $CVM_USER@$CVM_IP "echo 'SSH KEY OK'" 2>/dev/null; then
   SSH_AUTH_METHOD="password"
   echo -e "  ${YELLOW}⚠️  未检测到免密 key，将使用密码鉴权${NC}"
 
   # 检测 sshpass
   if ! command -v sshpass &> /dev/null; then
     echo -e "  ${RED}❌ 未安装 sshpass${NC}"
-    echo "  安装方法（任选一）："
-    echo "    brew install sshpass"
-    echo "    或：用 expect（macOS 自带）"
-    echo "    或：手动复制（见下方说明）"
-    echo ""
-    echo "  手动部署步骤："
-    echo "    scp $ZIP_FILE $CVM_USER@$CVM_IP:/tmp/"
-    echo "    scp scripts/cvm_deploy.sh $CVM_USER@$CVM_IP:/tmp/"
-    echo "    ssh $CVM_USER@$CVM_IP 'bash /tmp/cvm_deploy.sh /tmp/$ZIP_NAME'"
     exit 1
   fi
+
+  # 解析密码：优先级 CVM_PASS env > ~/.xincetong_cvm_pass > 交互输入
+  if [ -n "$CVM_PASS" ]; then
+    : # 直接用环境变量
+  elif [ -f "$HOME/.xincetong_cvm_pass" ]; then
+    CVM_PASS=$(cat "$HOME/.xincetong_cvm_pass")
+    echo "  📁 从 ~/.xincetong_cvm_pass 读取密码"
+  else
+    if [ -t 0 ]; then
+      read -s -p "  请输入 CVM root 密码：" CVM_PASS
+      echo ""
+    else
+      echo -e "  ${RED}❌ 非交互模式且未提供 CVM_PASS / ~/.xincetong_cvm_pass${NC}"
+      echo "  请设置：CVM_PASS='xxx' bash $0 ..."
+      exit 1
+    fi
+  fi
+  export SSHPASS="$CVM_PASS"
 fi
 
 # 2) 上传 zip
@@ -76,9 +85,11 @@ echo -e "\n==> 2) 上传 zip 到 /tmp/$ZIP_NAME ..."
 if [ "$SSH_AUTH_METHOD" = "key" ]; then
   scp -P $CVM_PORT "$ZIP_FILE" $CVM_USER@$CVM_IP:/tmp/$ZIP_NAME
 else
-  read -s -p "  请输入 CVM root 密码：" CVM_PASS
-  echo ""
-  SSHPASS=$CVM_PASS sshpass -e scp -P $CVM_PORT "$ZIP_FILE" $CVM_USER@$CVM_IP:/tmp/$ZIP_NAME
+  # CVM_PASS 已在步骤 1 解析好（env / 文件 / 交互），直接用
+  if [ -z "$CVM_PASS" ]; then
+    echo -e "  ${RED}❌ CVM_PASS 未设置${NC}"; exit 1
+  fi
+  SSHPASS="$CVM_PASS" sshpass -e scp -P $CVM_PORT "$ZIP_FILE" $CVM_USER@$CVM_IP:/tmp/$ZIP_NAME
 fi
 echo "  ✅ zip 上传完成"
 

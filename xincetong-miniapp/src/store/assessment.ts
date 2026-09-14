@@ -7,7 +7,7 @@ import { setStorage, getStorage, removeStorage } from '@/utils/storage'
 
 export type AssessmentType = 'personal' | 'business'
 
-export interface Step1 { age: number; education: string; marriage: string; city: string; city_tier: string; residence: string }
+export interface Step1 { age: number; education: string; marriage: string; city: string; city_tier: string; residence: string; cmb_zdl_score?: string | number }
 export interface Step2 { company_type: string; work_years: string; monthly_income: string; social_security: string; housing_fund: string; payroll: string }
 /**
  * v5 P0 补全：business 类型的企业变量（与后端 init_business_v5_rules.py 对齐）
@@ -34,7 +34,7 @@ export interface Step1B {
   compliance_risk: string
 }
 export interface Step3 { house: string; car: string; insurance: string; deposit: string; mortgage_balance?: string }
-export interface Step4 { credit_card_count: string; credit_card_usage: string; loan_count: string; loan_types: string[]; recent_3month_queries: string; overdue_2year: string; serial_overdue: string; current_overdue: string; white_account: string; bad_status: string }
+export interface Step4 { credit_card_count: string; credit_card_usage: string; loan_count: string; loan_types: string[]; recent_3month_queries: string; recent_6month_queries: string; overdue_2year: string; serial_overdue: string; current_overdue: string; white_account: string; bad_status: string }
 /**
  * v4 P0 补全：线下辅助资料（5 类全选填，不参与评分；仅用于人工对接参考）
  * 字段语义：

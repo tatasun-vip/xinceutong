@@ -84,6 +84,28 @@
         </view>
       </view>
 
+      <!-- 05 银行内部评分（v22 选填，针对用户反馈"招行有招贷分，分数低基本也不会出额度"） -->
+      <view class="section">
+        <view class="section-head">
+          <text class="section-index">05</text>
+          <text class="section-title">银行内部评分（选填）</text>
+          <text class="section-section-optional">选填</text>
+        </view>
+        <view class="section-hint">填写您在招行的"招贷分"——查路径：招行 App → 信用生活 → 我的招贷分（满分 1000，分数低银行直接不出额度）</view>
+        <view class="bank-score-input">
+          <input
+            v-model="form.cmb_zdl_score"
+            type="number"
+            placeholder="例：720（不填则按通用模型评估）"
+            maxlength="4"
+            class="bank-score-field"
+          />
+          <text v-if="form.cmb_zdl_score" class="bank-score-tip">
+            阈值 600：{{ Number(form.cmb_zdl_score) >= 600 ? '✅ 通过' : '⚠️ 招行产品 E 级' }}
+          </text>
+        </view>
+      </view>
+
       <!-- 纠错提示 -->
       <view v-if="items.length" class="validation-list">
         <view
@@ -139,6 +161,8 @@ const form = reactive({
   education: store.step1?.education || '',
   marriage: store.step1?.marriage || '',
   city_tier: store.step1?.city_tier || '',
+  // v22 选填：招行招贷分（满分 1000，< 600 招行产品 E 级）
+  cmb_zdl_score: store.step1?.cmb_zdl_score || '',
 })
 
 const canNext = computed(

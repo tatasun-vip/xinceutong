@@ -1,8 +1,34 @@
 """
 金额 / 利率工具
 所有内部计算以"分"为单位整数化，DB 字段用 INT 或 DECIMAL
+v15 (2026-09-14): 5 个 value 函数加规范化
+  - 旧问题：前端传 "1.5 万-3 万"（带空格），评分卡 _norm 去空格能匹配上 → score 正常；
+    但 money.py 直接 dict.get 没规范化 → 查不到 → 返 0 → 额度全是 0
+  - 修复：5 个 value 函数全部 norm 后再查表
+v15a (2026-09-14): 导出 norm 给 product_engine / scorecard_engine 复用
+  - product_engine.py 4 个内联 dict（annual_tax_map / invoice_map / tax_rate_map / mult_map）
+    和 1 处字符串 == 比较（house == "无按揭"）
+  - scorecard_engine.py 1 处字符串 == 比较（house_net 分支）
+  - 这些位置没走 value 函数，直接 dict.get 或 == 比较会"评分对但额度 0"
 """
 from typing import Iterable
+
+
+def norm(s) -> str:
+    """去空格、全角转半角、转小写（与 scorecard_engine._norm 逻辑一致）
+
+    前端选项值常有空格（如 "1.5 万-3 万"），但 dict 的 key 是无空格版本（"1.5万-3万"）。
+    不规范化会导致"评分有，额度是 0"的诡异 bug。
+
+    v15a: 公开导出（去掉下划线），让 product_engine / scorecard_engine 复用
+    """
+    if s is None:
+        return ""
+    return str(s).replace(" ", "").replace("　", "").lower()
+
+
+# 向后兼容：保留 _norm 名字（避免破坏 scorecard_engine 旧引用）
+_norm = norm
 
 
 # 月收入区间 → 收入中位数（元）
@@ -56,27 +82,27 @@ MONTHLY_DEBT: dict[str, int] = {
 
 
 def income_value(label: str) -> int:
-    return INCOME_MIDPOINT.get(label, 0)
+    return INCOME_MIDPOINT.get(norm(label), 0)
 
 
 def housing_fund_value(label: str) -> int:
-    return HOUSING_FUND_MIDPOINT.get(label, 0)
+    return HOUSING_FUND_MIDPOINT.get(norm(label), 0)
 
 
 def house_value(label: str) -> int:
-    return HOUSE_VALUE.get(label, 0)
+    return HOUSE_VALUE.get(norm(label), 0)
 
 
 def car_value(label: str) -> int:
-    return CAR_VALUE.get(label, 0)
+    return CAR_VALUE.get(norm(label), 0)
 
 
 def credit_usage_ratio(label: str) -> float:
-    return CREDIT_USAGE_MIDPOINT.get(label, 0.0)
+    return CREDIT_USAGE_MIDPOINT.get(norm(label), 0.0)
 
 
 def monthly_debt_value(label: str) -> int:
-    return MONTHLY_DEBT.get(label, 0)
+    return MONTHLY_DEBT.get(norm(label), 0)
 
 
 def min_of(values: Iterable[int | float]) -> int:

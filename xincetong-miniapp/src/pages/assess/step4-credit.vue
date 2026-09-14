@@ -7,7 +7,7 @@
       <view class="credit-tip">
         <text class="credit-tip-line">—</text>
         <text class="credit-tip-text">本步骤数据<text class="text-bold">不查征信</text>，仅用于模拟评分</text>
-        <text class="credit-tip-progress" :class="{ 'is-done': filledCount === 9 }">{{ filledCount }} / 9</text>
+        <text class="credit-tip-progress" :class="{ 'is-done': filledCount === 10 }">{{ filledCount }} / 10</text>
       </view>
 
       <!-- 01 信用卡张数 -->
@@ -77,7 +77,7 @@
           <text class="section-title">近 3 个月查询</text>
           <text class="section-required">*</text>
         </view>
-        <view class="section-hint">包括贷款审批 / 信用卡审批 / 担保审查</view>
+        <view class="section-hint">包括贷款审批 / 信用卡审批 / 担保审查（&gt;6 次 = 央行一票否决）</view>
         <view class="section-options">
           <OptionCard
             v-for="opt in RECENT_3M_QUERIES_OPTIONS"
@@ -90,10 +90,30 @@
         </view>
       </view>
 
-      <!-- 05 近 2 年逾期 -->
+      <!-- 05 近 6 个月查询（v22 新增） -->
       <view class="section">
         <view class="section-head">
           <text class="section-index">05</text>
+          <text class="section-title">近 6 个月查询</text>
+          <text class="section-required">*</text>
+        </view>
+        <view class="section-hint">央行硬指标：&gt;10 次 = 一票否决（v22 新增）</view>
+        <view class="section-options">
+          <OptionCard
+            v-for="opt in RECENT_6M_QUERIES_OPTIONS"
+            :key="opt.label"
+            :label="opt.label"
+            :desc="opt.desc"
+            :selected="form.recent_6month_queries === opt.label"
+            @select="selectOne('recent_6month_queries', opt.label)"
+          />
+        </view>
+      </view>
+
+      <!-- 06 近 2 年逾期 -->
+      <view class="section">
+        <view class="section-head">
+          <text class="section-index">06</text>
           <text class="section-title">近 2 年逾期次数</text>
           <text class="section-required">*</text>
         </view>
@@ -110,10 +130,10 @@
         </view>
       </view>
 
-      <!-- 06 当前逾期 -->
+      <!-- 07 当前逾期 -->
       <view class="section">
         <view class="section-head">
-          <text class="section-index">06</text>
+          <text class="section-index">07</text>
           <text class="section-title">当前是否有逾期</text>
           <text class="section-required">*</text>
         </view>
@@ -130,10 +150,10 @@
         </view>
       </view>
 
-      <!-- 07 连续 60 天+ -->
+      <!-- 08 连续 60 天+ -->
       <view class="section">
         <view class="section-head">
-          <text class="section-index">07</text>
+          <text class="section-index">08</text>
           <text class="section-title">是否连续 60 天+ 逾期</text>
           <text class="section-required">*</text>
         </view>
@@ -150,10 +170,10 @@
         </view>
       </view>
 
-      <!-- 08 白户 -->
+      <!-- 09 白户 -->
       <view class="section">
         <view class="section-head">
-          <text class="section-index">08</text>
+          <text class="section-index">09</text>
           <text class="section-title">是否为白户</text>
           <text class="section-required">*</text>
         </view>
@@ -170,10 +190,10 @@
         </view>
       </view>
 
-      <!-- 09 账户状态 -->
+      <!-- 10 账户状态 -->
       <view class="section">
         <view class="section-head">
-          <text class="section-index">09</text>
+          <text class="section-index">10</text>
           <text class="section-title">账户状态异常</text>
           <text class="section-required">*</text>
         </view>
@@ -302,7 +322,7 @@ import { useExitConfirm } from '@/composables/useExitConfirm'
 import { pageView } from '@/utils/track'
 import {
   CREDIT_CARD_COUNT_OPTIONS, CREDIT_CARD_USAGE_OPTIONS, LOAN_COUNT_OPTIONS,
-  RECENT_3M_QUERIES_OPTIONS, OVERDUE_2Y_OPTIONS, CURRENT_OVERDUE_OPTIONS,
+  RECENT_3M_QUERIES_OPTIONS, RECENT_6M_QUERIES_OPTIONS, OVERDUE_2Y_OPTIONS, CURRENT_OVERDUE_OPTIONS,
   SERIAL_OVERDUE_OPTIONS, WHITE_ACCOUNT_OPTIONS, BAD_STATUS_OPTIONS,
   OFFLINE_DOC_OPTIONS,
 } from '@/constants/assess-options'
@@ -324,6 +344,7 @@ const form = reactive({
   credit_card_usage: store.step4?.credit_card_usage || '',
   loan_count: store.step4?.loan_count || '',
   recent_3month_queries: store.step4?.recent_3month_queries || '',
+  recent_6month_queries: store.step4?.recent_6month_queries || '',  // v22 新增
   overdue_2year: store.step4?.overdue_2year || '',
   current_overdue: store.step4?.current_overdue || '',
   serial_overdue: store.step4?.serial_overdue || '',
@@ -333,7 +354,8 @@ const form = reactive({
 
 const canNext = computed(() =>
   !!form.credit_card_count && !!form.credit_card_usage && !!form.loan_count
-  && !!form.recent_3month_queries && !!form.overdue_2year
+  && !!form.recent_3month_queries && !!form.recent_6month_queries  // v22 新增
+  && !!form.overdue_2year
   && !!form.current_overdue && !!form.serial_overdue
   && !!form.white_account && !!form.bad_status
 )
@@ -343,11 +365,12 @@ const fieldLabels: Record<keyof typeof form, string> = {
   credit_card_usage: '02 信用卡使用率',
   loan_count: '03 在贷笔数',
   recent_3month_queries: '04 近3月查询',
-  overdue_2year: '05 近2年逾期',
-  current_overdue: '06 当前是否有逾期',
-  serial_overdue: '07 连续60天+逾期',
-  white_account: '08 是否为白户',
-  bad_status: '09 账户状态异常',
+  recent_6month_queries: '05 近6月查询',  // v22 新增
+  overdue_2year: '06 近2年逾期',
+  current_overdue: '07 当前是否有逾期',
+  serial_overdue: '08 连续60天+逾期',
+  white_account: '09 是否为白户',
+  bad_status: '10 账户状态异常',
 }
 
 const missingFields = computed<string[]>(() => {
@@ -358,7 +381,7 @@ const missingFields = computed<string[]>(() => {
   return out
 })
 
-const filledCount = computed(() => 9 - missingFields.value.length)
+const filledCount = computed(() => 10 - missingFields.value.length)  // v22: 9 → 10（加 6月查询）
 
 pageView('assess/step4-credit')
 

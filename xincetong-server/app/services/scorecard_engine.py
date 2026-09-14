@@ -1,23 +1,27 @@
 """
-评分卡核心引擎
+评分卡核心引擎（v17 银行实操对齐版，2026-09-14）
 
 按银行 A 卡四层逻辑：
-  1. 准入层（一票否决）：年龄/逾期/黑户/集中查询 等硬指标
-  2. 反欺诈层：预留（阶段 6 接入）
-  3. A 卡层：基于 5 大类变量打分（基础/职业/收入/资产/征信）
-  4. 额度/利率层：4 种额度测算方法取最小值
+ 1. 准入层（一票否决）：年龄/逾期/黑户/集中查询/合规 等硬指标
+ 2. 反欺诈层：预留（阶段 6 接入）
+ 3. A 卡层：5 维度加权（信用历史 30 / 偿债能力 30 / 资产负债 20 / 个人特征 15 / 公共信息 5）
+ 4. 额度/利率层：4 种额度测算方法取最小值（保留 v16 派生 bank_regulations_2026）
 
-评分流程：
-  加载规则 → 一票否决 → 逐项打分 → 归一化 0~100 → 等级映射
-  → 额度测算（4 方法）→ PD 违约概率 → 通过概率
-  → 风险标签 / 优势 / 弱点
+v17 评分流程（详见 verify-report-2026-09-14-v17-bank-aligned-scorecard.md）：
+ 加载规则 → 一票否决 → 3 段式打分（加分 + 扣分 + 一票否决）
+ → 5 维度加总（每维度截到满分，自然 0-100）
+ → 政策性上限（白户 C / 无公积金 B / 关键保障全缺 C / 0 资产 D）
+ → 0 命中兜底 D → 等级映射 → 额度测算 → PD 违约概率 → 通过概率
+ → 风险标签 / 优势 / 弱点
 
 核心原则：
-  - 评分规则全走 scorecard_rules 表（不硬编码）
-  - 一票否决单独判断，不进入评分
-  - 4 种额度测算方法取最小值
-  - 通过概率基于 PD 违约概率映射
-  - 接口返回统一 {code, message, data} 格式
+ - 评分规则全走 scorecard_rules 表（不硬编码）
+ - 一票否决单独判断，不进入评分
+ - 4 种额度测算方法取最小值
+ - 通过概率基于 PD 违约概率映射
+ - 接口返回统一 {code, message, data} 格式
+ - 5 维度截到各维度满分，加总自然 0-100（v17 取代 v16 /174 归一化）
+ - 缺关键保障（公积金/社保/工资代发）从"中性"改"扣分 + 政策性上限"
 """
 from __future__ import annotations
 
@@ -38,6 +42,7 @@ from app.utils.money import (
     income_value,
     min_of,
     monthly_debt_value,
+    norm,
 )
 from app.utils.redis_client_safe import cache_get, cache_set  # 缓存（带安全降级）
 
@@ -64,14 +69,14 @@ PASS_PROB_MAP: list[tuple[float, str]] = [
     (1.01, "极低"),
 ]
 
-# 等级 → 利率区间下限（年化 %）
-RATE_MIN_BY_LEVEL: dict[str, float] = {
-    "S": 3.5, "A": 4.5, "B": 6.0, "C": 8.5, "D": 12.0, "E": 18.0,
-}
-# 等级 → 利率区间上限
-RATE_MAX_BY_LEVEL: dict[str, float] = {
-    "S": 5.0, "A": 7.0, "B": 9.5, "C": 14.0, "D": 18.0, "E": 24.0,
-}
+# v16 重大改造：利率区间不再拍脑袋，改为派生自 bank_regulations_2026
+#   6 产品的 6 等级 × (rate_lo, rate_hi) 取并集 min/max
+#   任何"等级→利率区间"修改只需改 bank_regulations_2026.py
+# 依据：央行 LPR 3.5%（2026-09 公布）+ 银保监消费贷 / 金管总局普惠小微
+from app.services.bank_regulations_2026 import (
+    RATE_MIN_BY_LEVEL,
+    RATE_MAX_BY_LEVEL,
+)
 
 # 等级 → 收入倍数法（年）
 # 银行 2025 实际参考：
@@ -220,6 +225,10 @@ async def _load_rules(
             "score": float(r.score),
             "type": r.type,
             "is_veto": r.is_veto,
+            # v17 新增 3 字段：3 段式评分 + 5 维度 + 政策性上限
+            "is_deduction": getattr(r, "is_deduction", 0) or 0,
+            "dimension": getattr(r, "dimension", "misc") or "misc",
+            "policy_cap": getattr(r, "policy_cap", None),
             "sort_order": r.sort_order,
             "enabled": r.enabled,
         }
@@ -245,7 +254,7 @@ def _check_veto(rules: list[dict], data: dict) -> dict | None:
         if r.get("is_veto") != 1:
             continue
         var = r["variable"]
-        if _norm(data.get(var)) == _norm(r["option_label"]) and data.get(var) is not None:
+        if norm(data.get(var)) == norm(r["option_label"]) and data.get(var) is not None:
             return {
                 "rule_variable": var,
                 "rule_label": r["option_label"],
@@ -267,6 +276,7 @@ def _var_zh(var: str) -> str:
         "id_card_check": "实名认证",
         "overdue_2year": "近 2 年逾期",
         "recent_3month_queries": "近 3 个月查询",
+        "recent_6month_queries": "近 6 个月查询",  # v22 新增变量
         "credit_card_usage": "信用卡使用率",
         "credit_card_count": "信用卡张数",
         "loan_count": "在贷笔数",
@@ -309,54 +319,194 @@ def _var_zh(var: str) -> str:
 # ============================================================================
 
 
-def _norm(s) -> str:
-    """规范化匹配串：去空格、全角转半角、转小写（解决前端"31-40 岁" vs 规则"31-40岁"不一致）"""
-    if s is None:
-        return ""
-    return str(s).replace(" ", "").replace("　", "").lower()
+# v15a: 删掉本文件的 _norm 定义（统一用 money.norm，避免 3 处规范化逻辑漂移）
 
 
-def _score_items(rules: list[dict], data: dict) -> tuple[float, list[dict]]:
-    """遍历规则，按 variable+option_label 匹配，返回 (raw_score, items)
+def _score_items(rules: list[dict], data: dict) -> tuple[float, list[dict], dict[str, float], set[str]]:
+    """v17 遍历规则，按 variable+option_label 匹配，返回 (raw_score, items, dim_scores, veto_set)
+
+    v17 关键改造（取代 v16 raw/174 归一化）：
+    1. 按 5 维度分别累计 score（dim_scores: {credit: 0, debt: 0, ...}）
+    2. 扣分项（is_deduction=1）= 命中则从对应维度减分
+    3. 一票否决项（is_veto=1）单独走 _check_veto，不进入打分循环
+    4. 返回 5 维度分供 _normalize 加总（自然 0-100）
 
     匹配采用"规范化比对"（去空格、转小写），避免前端"31-40 岁" vs 规则"31-40岁"的不一致 bug。
     """
     items: list[dict] = []
     raw = 0.0
+    dim_scores: dict[str, float] = {d: 0.0 for d in _DIMENSION_LIST}
+    veto_set: set[str] = set()  # 政策性上限命中集合（"B"/"C"/"D"）
     for r in rules:
         if r.get("is_veto") == 1:
             continue
         var = r["variable"]
-        if _norm(data.get(var)) == _norm(r["option_label"]) and data.get(var) is not None:
-            raw += float(r["score"])
+        if norm(data.get(var)) == norm(r["option_label"]) and data.get(var) is not None:
+            score = float(r["score"])
+            dim = r.get("dimension", "misc")
+            is_deduction = r.get("is_deduction", 0)
+            policy_cap = r.get("policy_cap")
+            if is_deduction:
+                # 扣分项：从对应维度减分（不进入 raw 正向累加，但 raw 仍追踪总体趋势）
+                dim_scores[dim] = dim_scores.get(dim, 0.0) - score
+                raw -= score
+            else:
+                # 加分项
+                dim_scores[dim] = dim_scores.get(dim, 0.0) + score
+                raw += score
+            # 政策性上限：命中即记入 veto_set
+            if policy_cap and policy_cap in _POLICY_CAPS:
+                veto_set.add(policy_cap)
             items.append(
                 {
                     "category": r.get("category"),
                     "variable": var,
                     "option_label": r["option_label"],
-                    "score": float(r["score"]),
+                    "score": score,
+                    "is_deduction": is_deduction,
+                    "dimension": dim,
+                    "policy_cap": policy_cap,
                 }
             )
-    return raw, items
+    return raw, items, dim_scores, veto_set
 
 
 # ============================================================================
-# 归一化 + 等级
+# v17 5 维度归一化 + 政策性上限 + 等级
 # ============================================================================
 
 
-def _normalize(raw: float, items: list[dict]) -> int:
-    """
-    归一化到 0~100。
+# v17 5 维度满分（30 + 30 + 20 + 15 + 5 = 100）
+_DIMENSION_CAPS: dict[str, float] = {
+    "credit": 30.0,    # 信用历史
+    "debt": 30.0,      # 偿债能力
+    "asset": 20.0,     # 资产负债
+    "personal": 15.0,  # 个人特征
+    "public": 5.0,     # 公共信息
+    "misc": 0.0,       # 杂项（不计入总分）
+}
+_DIMENSION_LIST = list(_DIMENSION_CAPS.keys())
 
-    评分规则全表实际命中满分为 ~174 分（基础 22 + 职业 52 + 收入 30 + 资产 40 + 征信 50
-    中通常会同时命中的高分项累计；取实际可能命中的最大经验值）。
-    原 /2.0 是按"全 200 分对半"的旧估算，导致全优用户只到 87 分，整体偏低。
-    改 /1.74 后，全优用户命中 ~170 → 归一化到 98 分，更符合"满分 100"的预期。
+
+# v17 政策性上限等级上界（命中后 final_score 不能超过此分数）
+_POLICY_CAPS: dict[str, int] = {
+    "S": 100,  # 上限 S 几乎不用（占位）
+    "A": 79,   # 政策性 A 上限
+    "B": 69,   # 政策性 B 上限（无公积金/无社保命中此）
+    "C": 54,   # 政策性 C 上限（白户/关键保障全缺命中此）
+    "D": 39,   # 政策性 D 上限（0 资产命中此）
+    "E": 19,   # 政策性 E 上限（极少用）
+}
+
+
+def _normalize(
+    dim_scores: dict[str, float],
+    items: list[dict],
+    veto_set: set[str],
+    *,
+    type_: str = "personal",
+) -> int:
+    """v17 5 维度加总归一化（取代 v16 /174 归一化）
+
+    1. 每维度分截到 [0, 维度满分]（不允许溢出到其他维度）
+    2. 5 维度加总 = 总分（自然 0-100）
+    3. 政策性上限：veto_set 中取最严的（字母靠后 = 等级最低 = 分数最低）
+    4. 0 命中兜底：items 为空 → D 级（39）
+    5. 企业类型额外：v17 business 流程多对公日均余额 + 工商注册年限变量
     """
     if not items:
-        return 0
-    return max(0, min(100, int(round(raw * 100 / 174))))
+        return 0  # 0 命中（不算扣分也不算加分的空数据）→ 直接 D
+
+    total = 0
+    for dim, cap in _DIMENSION_CAPS.items():
+        if dim == "misc":
+            continue
+        s = dim_scores.get(dim, 0.0)
+        # 单维度截到 [0, cap]：不允许溢出（一个维度最多 30 分）
+        s = max(0.0, min(cap, s))
+        total += s
+
+    # 政策性上限（取最严的）
+    if veto_set:
+        # B/C/D/E 字母越靠后 = 等级越低 = 分数上界越小
+        order = ["E", "D", "C", "B", "A", "S"]
+        strictest = min(veto_set, key=lambda c: order.index(c))
+        cap = _POLICY_CAPS.get(strictest, 100)
+        if total > cap:
+            total = cap
+
+    # 0 命中兜底（已 items 空过滤；这里再保一次防止 raw=0 但 dim 误加）
+    if total < 20 and len(items) > 0 and all(it.get("score", 0) <= 0 for it in items):
+        # 全是扣分项（0 命中任何加分）→ D 级
+        total = min(total, 39)
+
+    return max(0, min(100, int(round(total))))
+
+
+# v17 复合判断（在 engine 层做，因为单条规则 AND/OR 不易表达）
+def _check_compound_policy(data: dict, type_: str) -> set[str]:
+    """v17 复合判断：命中后加入政策性上限集合
+
+    - 关键保障全缺（无公积金 AND 无社保 AND 无代发）→ C(54)
+    - 0 资产（无房 AND 无车 AND 无存款）→ D(39)
+    - 仅公积金/社保其一缺失 → B(69)（已在 _score_items 通过规则命中）
+    - v22 现实版新增：
+      - 无公积金 + 低收入(<8000) + 无存款 → D(39)
+      - v22 加严新增：
+        - 高信用卡使用率(>=50%) + 3 笔以上贷款 → D(39)
+        - 低月入(<5000) + 0 资产 → D(39)
+        - 5 大行独缺（既无社保又无公积金）→ D(39) 强化（原 C）
+    """
+    caps: set[str] = set()
+    if type_ == "personal":
+        # 关键保障全缺
+        if (
+            norm(data.get("housing_fund")) == "无"
+            and norm(data.get("social_security")) == "无"
+            and norm(data.get("payroll")) == "否"
+        ):
+            caps.add("C")
+        # 0 资产
+        if (
+            norm(data.get("house")) == "无房"
+            and norm(data.get("car")) == "无车"
+            and norm(data.get("deposit")) == "无"
+        ):
+            caps.add("D")
+        # v22 现实版：无公积金 + 低收入 + 无存款 → D(39) 强拒贷场景
+        try:
+            income = income_value(data.get("monthly_income", ""))
+        except Exception:
+            income = 0
+        if (
+            norm(data.get("housing_fund")) == "无"
+            and income < 8000  # 月收入 < 8000
+            and norm(data.get("deposit")) == "无"
+        ):
+            caps.add("D")
+        # v22 加严：高信用卡使用率 + 多笔贷款 → D(39)
+        # 依据：real bank 高使用率 + 3+ 笔贷款 = 显著降 D 档
+        if (
+            norm(data.get("credit_card_usage")) in ("50%-80%", "80%以上")
+            and norm(data.get("loan_count")) in ("3-5笔", "5笔以上")
+        ):
+            caps.add("D")
+        # v22 加严：低月入 + 0 资产 → D(39)
+        # 依据：real bank 月入 < 5000 + 0 资产 = 拒贷
+        if income < 5000 and norm(data.get("deposit")) == "无" and norm(data.get("house")) == "无房":
+            caps.add("D")
+        # v22 加严：既无社保又无公积金 → D(39) 强化（原 C）
+        # 依据：real bank 5 大行独缺双保 = 大概率拒贷
+        if norm(data.get("housing_fund")) == "无" and norm(data.get("social_security")) == "无":
+            caps.add("D")
+    elif type_ == "business":
+        # 企业：员工 0 AND 对公余额几乎为零
+        if (
+            norm(data.get("employee_count")) == "0人"
+            and norm(data.get("biz_balance")) == "几乎为零"
+        ):
+            caps.add("C")
+    return caps
 
 
 def _level_of(score: int) -> str:
@@ -401,7 +551,8 @@ def _calc_limits(data: dict, level: str) -> tuple[int, int, float, float]:
     # 弱客群按 D=0.4 净值率（按揭比例往往更高）。
     _NET_RATIO = {"S": 0.85, "A": 0.75, "B": 0.65, "C": 0.55, "D": 0.4, "E": 0.0}
     net_ratio = _NET_RATIO.get(level, 0.5)
-    house_net = house if data.get("house") == "无按揭" else house * net_ratio
+    # v15a 修复：house == "无按揭" 字符串比较前 norm 化（前端可能传 "无 按揭" 带空格）
+    house_net = house if norm(data.get("house")) == "无按揭" else house * net_ratio
     asset_value = house_net + car
     limit_asset = asset_value * ASSET_MORTGAGE_RATE.get(level, 0)
 
@@ -497,16 +648,23 @@ def _calc_pd_and_pass(score: int, level: str) -> tuple[float, str]:
 
 
 def _build_tags(data: dict, items: list[dict]) -> tuple[list[str], list[str], list[str]]:
-    """根据用户数据匹配标签库"""
+    """根据用户数据匹配标签库
+
+    v22+ 规范化：调用 narrative.apply_mutex 保证 tags 不自相矛盾
+    （如：信用卡 80%+ → '信用卡使用率过高' 已出现 → '信用卡使用率低' 优势自动移除）
+    """
     risks: list[str] = []
     advs: list[str] = []
     weaks: list[str] = []
 
     def has(var: str, val: str) -> bool:
-        return data.get(var) == val
+        # v15a 修复：== 比较前 norm 化（前端"5000以下" vs 规则"5000 以下"）
+        return norm(data.get(var)) == norm(val)
 
     def in_(var: str, vals: list[str]) -> bool:
-        return data.get(var) in vals
+        # v15a 修复：in 比较前 norm 化
+        nv = norm(data.get(var))
+        return any(nv == norm(v) for v in vals)
 
     if has("current_overdue", "有"):
         risks.append("当前有逾期")
@@ -523,7 +681,9 @@ def _build_tags(data: dict, items: list[dict]) -> tuple[list[str], list[str], li
     if in_("credit_card_usage", ["80%以上"]):
         risks.append("信用卡使用率过高")
     if in_("recent_3month_queries", ["6次以上"]):
-        risks.append("近 3 个月查询过多")
+        risks.append("近 3 个月查询过多（央行一票否决）")
+    if in_("recent_6month_queries", ["10次以上"]):  # v22 新增
+        risks.append("近 6 个月查询过多（央行一票否决）")
     if in_("loan_count", ["5笔以上"]):
         risks.append("在贷笔数偏多")
 
@@ -543,6 +703,10 @@ def _build_tags(data: dict, items: list[dict]) -> tuple[list[str], list[str], li
         advs.append("近 2 年无逾期")
     if has("credit_card_usage", "30%以下"):
         advs.append("信用卡使用率低")
+    if in_("recent_3month_queries", ["0-2次"]):  # v22 加分点：低查询
+        advs.append("近期征信查询稀少")
+    if in_("recent_6month_queries", ["0-3次"]):  # v22 加分点：低查询
+        advs.append("半年征信查询稀少")
 
     if in_("monthly_income", ["5000以下"]):
         weaks.append("月收入偏低")
@@ -552,6 +716,14 @@ def _build_tags(data: dict, items: list[dict]) -> tuple[list[str], list[str], li
         weaks.append("已有贷款笔数较多")
     if has("credit_card_usage", "80%以上"):
         weaks.append("信用卡额度占用高")
+
+    # v22+ 规范化：应用 RISK_ADVANTAGE_MUTEX，确保 risks/advs/weaks 不自相矛盾
+    try:
+        from app.services.narrative import apply_mutex
+        advs, weaks = apply_mutex(risks, advs, weaks)
+    except ImportError:
+        # 兼容无 narrative 模块的旧路径（理论上不会发生）
+        pass
 
     return risks, advs, weaks
 
@@ -714,11 +886,15 @@ async def calculate_score(
             products=_build_products("E", 0, 0, 0, 0),
         )
 
-    # 2. 逐项打分
-    raw, items = _score_items(rules, input_data)
+    # 2. 逐项打分（v17 3 段式：加分 + 扣分 + 一票否决）
+    raw, items, dim_scores, veto_set = _score_items(rules, input_data)
 
-    # 3. 归一化
-    score = _normalize(raw, items)
+    # 2.5 复合判断（v17 新增：关键保障全缺 / 0 资产 / 0 员工+0 余额）
+    compound_caps = _check_compound_policy(input_data, type_)
+    veto_set |= compound_caps
+
+    # 3. 归一化（v17 5 维度加总 + 政策性上限 + 0 命中兜底）
+    score = _normalize(dim_scores, items, veto_set, type_=type_)
     level = _level_of(score)
 
     # 4. 额度测算

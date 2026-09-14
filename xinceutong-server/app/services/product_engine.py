@@ -47,6 +47,11 @@ from app.utils.money import (
     min_of,
     monthly_debt_value,
 )
+from app.services.bank_scorecard import (
+    apply_bank_bias as _apply_bank_bias,
+    get_bank_limit_boost as _get_bank_limit_boost,
+    is_veto_relax as _is_veto_relax,
+)
 
 
 # ============================================================================
@@ -83,8 +88,144 @@ CHANNEL_CAPS: dict[str, dict[str, int]] = {
 
 
 # ============================================================================
+# 实际可贷金额折扣（按综合等级）
+# ============================================================================
+# 银行实操：S/A 维持测算值；B 级打 5 折（中等客群实际授信 50%）；C 打 3 折；
+# D 打 1.5 折（弱客群银行实际给得更少）；E 拒批（0）。
+#
+# 设计原则：避免"测算额度虚高"问题（用户看到 50 万，实际去银行只给 10 万）
+# 与 synthesize_overall_score 共用此常量。
+_LIMIT_DISCOUNT: dict[str, float] = {
+    "S": 1.0, "A": 1.0, "B": 0.5, "C": 0.3, "D": 0.15, "E": 0.0,
+}
+
+
+# ============================================================================
+# 6 产品证据链构建（A2 深度证据链设计）
+# ============================================================================
+
+
+def _build_evidence(
+    items: list[dict],
+    rules: list[dict],
+    score: int,
+    level: str,
+    limit_min_capped: int,
+    limit_max_capped: int,
+) -> dict:
+    """6 产品独立证据链构建
+
+    从 items（用户实际命中的规则）提取 4 类信息 + 1 个实际可贷金额：
+
+    Returns:
+        {
+          "hit_rules": [{"rule", "score", "category"}, ...],   # 命中高分 top 3
+          "low_rules": [{"rule", "score", "category"}, ...],   # 命中低分 top 3
+          "improve_vars": [{"var", "current", "best", "delta"}, ...],  # 提分变量 top 3
+          "not_recommend_reason": "str",                          # 不推荐原因（1-2 句）
+          "realistic_limit_min": int,                            # 实际可贷下限
+          "realistic_limit_max": int,                            # 实际可贷上限
+        }
+    """
+    # 1. 命中规则（高分）：score > 0，按 score desc 取 top 3
+    positive = [it for it in items if it["score"] > 0]
+    positive.sort(key=lambda x: x["score"], reverse=True)
+    hit_rules = [
+        {
+            "rule": it["option_label"],
+            "score": round(it["score"], 1),
+            "category": it.get("category") or "",
+        }
+        for it in positive[:3]
+    ]
+
+    # 2. 命中规则（低分）：score < 0，按 score asc 取 top 3
+    negative = [it for it in items if it["score"] < 0]
+    negative.sort(key=lambda x: x["score"])
+    low_rules = [
+        {
+            "rule": it["option_label"],
+            "score": round(it["score"], 1),
+            "category": it.get("category") or "",
+        }
+        for it in negative[:3]
+    ]
+
+    # 3. 提分变量：每个 low_rule 找同 variable 的最高分 option → 计算 delta
+    #    （"如果用户改为最佳选项，可以+多少分"）
+    improve_vars: list[dict] = []
+    for lr in negative:
+        var = lr["variable"]
+        same_var_rules = [r for r in rules if r["variable"] == var and not r.get("is_veto")]
+        if not same_var_rules:
+            continue
+        best = max(same_var_rules, key=lambda r: r["score"])
+        if best["score"] > lr["score"] and best["option_label"] != lr["option_label"]:
+            improve_vars.append({
+                "var": var,
+                "current": lr["option_label"],
+                "best": best["option_label"],
+                "delta": round(best["score"] - lr["score"], 1),
+            })
+    improve_vars.sort(key=lambda x: x["delta"], reverse=True)
+    improve_vars = improve_vars[:3]
+
+    # 4. 不推荐原因：基于 low_rules + level 聚合，1-2 句中文
+    not_recommend_reason = ""
+    if level == "E":
+        if low_rules:
+            rules_text = "；".join(lr["rule"] for lr in low_rules[:2])
+            not_recommend_reason = f"扣分项：{rules_text}，建议先解决风险项"
+        else:
+            not_recommend_reason = "当前资质不符合准入条件，建议先解决风险项"
+    elif level == "D":
+        if low_rules:
+            rules_text = "；".join(lr["rule"] for lr in low_rules[:2])
+            not_recommend_reason = f"综合分偏低（{score} 分），主要扣分项：{rules_text}"
+        else:
+            not_recommend_reason = f"综合分偏低（{score} 分），建议 3-6 个月改善后申请"
+    elif level == "C" and low_rules:
+        rules_text = "；".join(lr["rule"] for lr in low_rules[:2])
+        not_recommend_reason = f"可优化项：{rules_text}"
+
+    # 5. 实际可贷金额：limit × _LIMIT_DISCOUNT（按本产品等级）
+    discount = _LIMIT_DISCOUNT.get(level, 0.5)
+    if limit_min_capped > 0:
+        realistic_min = _round_to_nice(int(limit_min_capped * discount))
+        realistic_max = _round_to_nice(int(limit_max_capped * discount))
+    else:
+        realistic_min = 0
+        realistic_max = 0
+
+    return {
+        "hit_rules": hit_rules,
+        "low_rules": low_rules,
+        "improve_vars": improve_vars,
+        "not_recommend_reason": not_recommend_reason,
+        "realistic_limit_min": realistic_min,
+        "realistic_limit_max": realistic_max,
+    }
+
+
+# ============================================================================
 # 渠道合规 Cap 工具
 # ============================================================================
+
+
+def _round_to_nice(v: int | float, step: int = 5000) -> int:
+    """v7 增量：把额度取整到 step 的整数倍（约数），让展示更"圆"
+    
+    业务诉求：模拟测算的额度（如 51638 元）太碎，给用户看像瞎编的。
+    改成 round 到 5000 的整数倍后（55000 / 70000），更接近银行实际放款区间。
+    
+    边界：
+      - 0 直接返回 0（避免给已否决的额度乱圆整）
+      - < step 直接 round 到 step
+    """
+    v = int(v)
+    if v <= 0:
+        return 0
+    return max(step, int(round(v / step)) * step)
 
 
 def apply_channel_cap(
@@ -129,6 +270,9 @@ def apply_channel_cap(
     else:
         limit_min_capped = limit_min
         limit_max_capped = limit_max
+    # v7 增量：圆整到 5000 整数倍，让展示更"圆"（如 51638 → 55000）
+    limit_min_capped = _round_to_nice(limit_min_capped)
+    limit_max_capped = _round_to_nice(limit_max_capped)
     return limit_min_capped, limit_max_capped, was_capped, "; ".join(reason_parts)
 
 
@@ -173,6 +317,23 @@ class ProductResult:
     channel_offline_max: int = 0  # 线下渠道上限（元）
     limit_capped: bool = False     # 测算值是否被渠道 cap 了
     limit_reason: str = ""         # 被 cap 的原因（生成给用户看）
+    # v9 增量：6 产品独立证据链（A2 深度证据链设计）
+    hit_rules: list[dict] = field(default_factory=list)
+    """命中的高分规则 top3（按 score desc），用于「命中规则」展示：
+       [{"rule": "公积金连续缴存 3 年以上", "score": +8, "category": "收入"}, ...]"""
+    low_rules: list[dict] = field(default_factory=list)
+    """命中的低分/扣分规则 top3（按 score asc），用于「不推荐原因」展示：
+       [{"rule": "信用卡使用率 80%以上", "score": -5, "category": "征信"}, ...]"""
+    not_recommend_reason: str = ""
+    """不推荐原因（基于 low_rules 聚合 + level 推断），1-2 句中文给用户看：
+       「近 3 个月查询 6 次以上（-6 分），建议 90 天后再申请」"""
+    improve_vars: list[dict] = field(default_factory=list)
+    """提分变量（命中负分项 → 若改为最佳选项可获得的提分），用于「提分变量」展示：
+       [{"var": "credit_card_usage", "current": "80%以上", "best": "30%以下", "delta": +5}, ...]"""
+    realistic_limit_min: int = 0  # 实际可贷下限（综合等级折扣后 + 渠道 cap 后）
+    realistic_limit_max: int = 0  # 实际可贷上限
+    """实际可贷金额 = 测算金额 × 综合等级折扣 × 渠道 cap
+       与 limit_min/limit_max 区别：limit_min/max 是公式直算值，realistic 是用户实际能拿到的"""
 
     def to_dict(self) -> dict:
         return {
@@ -204,6 +365,13 @@ class ProductResult:
             "channel_offline_max": self.channel_offline_max,
             "limit_capped": self.limit_capped,
             "limit_reason": self.limit_reason,
+            # v9 增量：6 产品独立证据链
+            "hit_rules": self.hit_rules,
+            "low_rules": self.low_rules,
+            "not_recommend_reason": self.not_recommend_reason,
+            "improve_vars": self.improve_vars,
+            "realistic_limit_min": self.realistic_limit_min,
+            "realistic_limit_max": self.realistic_limit_max,
         }
 
 
@@ -354,9 +522,15 @@ def _calc_limit_tax(data: dict, level: str) -> tuple[int, int, float, float]:
 
     银行实操：建行/工行税易贷/微众银行微业贷，按近 1-2 年纳税额 5-10 倍授信。
     S 级 10 倍已偏乐观，正常 B 级客户给到 4-5 倍。
+
+    v9 修复：个人流程表单无 annual_tax 字段时，按 income + tax label 兜底估算：
+      - tax label: 高=15%个税率, 中=10%, 低=5%, 无=0%
+      - annual_tax ≈ 月收入 × 12 × 个税率（按当地累进近似）
+      - 数据全缺则继续返回 0（让该产品 E 等级自然被淘汰）
     """
-    # 尝试读 annual_tax 字段（如有），否则按企业月收入代理
+    # 1) 尝试读 annual_tax 字段（如有）
     annual_tax_str = data.get("annual_tax", "")
+    annual_tax = 0
     if annual_tax_str:
         try:
             annual_tax = int(annual_tax_str)
@@ -370,8 +544,17 @@ def _calc_limit_tax(data: dict, level: str) -> tuple[int, int, float, float]:
                 "100万以上": 1500000,
             }
             annual_tax = annual_tax_map.get(annual_tax_str, 0)
-    else:
-        annual_tax = 0
+
+    # 2) 兜底：按 income + tax label 估算（个人流程用）
+    if annual_tax == 0:
+        tax_label = data.get("tax", "")
+        tax_rate_map = {"高": 0.15, "中": 0.10, "低": 0.05}
+        rate = tax_rate_map.get(tax_label, 0)
+        if rate > 0:
+            income = income_value(data.get("monthly_income", ""))
+            if income > 0:
+                annual_tax = int(income * 12 * rate)
+
     if level == "E" or annual_tax == 0:
         return 0, 0, 0, 0
     multiplier = {"S": 10, "A": 8, "B": 5, "C": 3, "D": 1.5}.get(level, 5)
@@ -385,8 +568,13 @@ def _calc_limit_invoice(data: dict, level: str) -> tuple[int, int, float, float]
 
     银行实操：网商银行/微众银行/京东金融开票贷，按近 1 年开票额 5-10% 授信。
     S 级 10% 是优质企业上限，B 级 5-6% 是普通小微企业常见值。
+
+    v9 修复：个人流程表单无 annual_invoice 字段时，按 income + invoice label 兜底：
+      - invoice label: 高=月收入×5倍, 中=3倍, 低=1.5倍（模拟小规模经营者的开票量）
+      - 数据全缺则继续返回 0
     """
     annual_invoice_str = data.get("annual_invoice", "")
+    annual_invoice = 0
     if annual_invoice_str:
         try:
             annual_invoice = int(annual_invoice_str)
@@ -399,8 +587,17 @@ def _calc_limit_invoice(data: dict, level: str) -> tuple[int, int, float, float]
                 "1000万以上": 15000000,
             }
             annual_invoice = invoice_map.get(annual_invoice_str, 0)
-    else:
-        annual_invoice = 0
+
+    # 2) 兜底：按 income + invoice label 估算
+    if annual_invoice == 0:
+        invoice_label = data.get("invoice", "")
+        mult_map = {"高": 60, "中": 36, "低": 18}  # 5/3/1.5 倍月收入 × 12
+        mult = mult_map.get(invoice_label, 0)
+        if mult > 0:
+            income = income_value(data.get("monthly_income", ""))
+            if income > 0:
+                annual_invoice = int(income * mult)
+
     if level == "E" or annual_invoice == 0:
         return 0, 0, 0, 0
     rate = {"S": 0.10, "A": 0.08, "B": 0.06, "C": 0.04, "D": 0.02}.get(level, 0.05)
@@ -429,16 +626,26 @@ LIMIT_FORMULA_REGISTRY = {
 
 
 async def _evaluate_one_product(
-    product: ProductType, input_data: dict, type_: str, db: AsyncSession
+    product: ProductType, input_data: dict, type_: str, db: AsyncSession, bank_code: str | None = None
 ) -> ProductResult:
-    """对单个产品跑完整评分流程"""
+    """对单个产品跑完整评分流程
+
+    v7 增量：bank_code 不为 None 时按银行 focus 调整 score
+    """
     # 1. 加载该产品的规则（通用 + 专属）
     rules = await _load_rules_for_product(type_, db, product.id)
 
-    # 2. 一票否决
+    # 2. 一票否决（互联网银行 veto_relax：一票否决条件更松）
     veto = _check_veto(rules, input_data)
+    if veto and bank_code and _is_veto_relax(bank_code):
+        # 互联网银行允许「轻度逾期+其他资质好」通过
+        credit_overdue = input_data.get("credit_overdue", 0)
+        if isinstance(credit_overdue, (int, float)) and credit_overdue <= 2:
+            logger.info(f"[bank_bias] {bank_code} veto_relax: 轻度逾期({credit_overdue}) 忽略否决")
+            veto = None
     if veto:
         # 命中否决：本产品 E 级，但其他产品可能仍可申请
+        veto_msg = veto.get('message', '不符合准入条件')
         return ProductResult(
             product_code=product.code,
             product_name=product.name,
@@ -456,12 +663,16 @@ async def _evaluate_one_product(
             focus_vars=product.focus_vars or [],
             key_points=product.key_points or [],
             matched_items=[],
-            risk_tags=[f"一票否决：{veto.get('message', '不符合准入条件')}"],
+            risk_tags=[f"一票否决：{veto_msg}"],
             advantages=[],
             weak_points=["存在硬性风险项，需先解决"],
             recommend=0,
             description=product.description or "",
             veto=veto,
+            # v9 增量：veto 时只填不推荐原因，其他留空（无命中规则 + 实际额度 0）
+            not_recommend_reason=f"命中一票否决：{veto_msg}，建议先解决风险项",
+            realistic_limit_min=0,
+            realistic_limit_max=0,
         )
 
     # 3. 逐项打分
@@ -469,6 +680,12 @@ async def _evaluate_one_product(
 
     # 4. 归一化 + 等级
     score = _normalize(raw, items)
+    # v7 增量：银行差异化加权（ICBC 公积金+1.5x、CCB 房产+1.6x 等）
+    if bank_code and score > 0:
+        biased = _apply_bank_bias(score, bank_code, product.code)
+        if biased != score:
+            logger.info(f"[bank_bias] {bank_code} {product.code}: {score:.1f} -> {biased:.1f}")
+            score = biased
     level = _level_of(score)
 
     # 5. 额度公式（按 product.limit_formula 选函数）
@@ -503,6 +720,11 @@ async def _evaluate_one_product(
             f"capped=[{limit_min_capped/10000:.1f}万 ~ {limit_max_capped/10000:.1f}万]"
         )
 
+    # v9 增量：构建 6 产品独立证据链（命中规则/不推荐原因/提分变量/实际可贷金额）
+    evidence = _build_evidence(
+        items, rules, score, level, limit_min_capped, limit_max_capped
+    )
+
     return ProductResult(
         product_code=product.code,
         product_name=product.name,
@@ -529,6 +751,8 @@ async def _evaluate_one_product(
         channel_offline_max=offline_cap,
         limit_capped=was_capped,
         limit_reason=reason,
+        # v9 增量字段（来自 _build_evidence）
+        **evidence,
     )
 
 
@@ -608,6 +832,7 @@ async def calculate_scores_by_product(
     input_data: dict,
     type_: str,
     db: AsyncSession,
+    bank_code: str | None = None,
 ) -> list[ProductResult]:
     """
     6 大产品独立测算主入口
@@ -620,6 +845,7 @@ async def calculate_scores_by_product(
       input_data: 用户填写的 23 字段
       type_: personal / business
       db: AsyncSession
+      bank_code: 银行 code（v7 增量，按银行 focus 调整评分；None = 通用模型）
 
     返回：
       list[ProductResult]，按 sort_order 排序
@@ -644,7 +870,7 @@ async def calculate_scores_by_product(
     results: list[ProductResult] = []
     for product in matched:
         try:
-            r = await _evaluate_one_product(product, input_data, type_, db)
+            r = await _evaluate_one_product(product, input_data, type_, db, bank_code)
             results.append(r)
         except Exception as e:
             logger.error(f"产品 {product.code} 测算失败: {e}")
@@ -671,6 +897,7 @@ async def calculate_scores_by_product(
                 weak_points=[],
                 recommend=0,
                 description=product.description or "",
+                not_recommend_reason="测算异常，请稍后再试",
             ))
 
     # 4. 从 6 个产品中挑出"最适合当前用户"的那 1 个打 best_for_user=True
@@ -740,10 +967,13 @@ def synthesize_overall_score(results: list[ProductResult]) -> tuple[int, str, in
     # 综合额度按综合分等级折扣（避免"低分高额度"自相矛盾）
     # S/A 维持原值；B 0.5（中等客群实际授信 50% 折扣）；C 0.3；D 0.15；E 0（拒批）
     # 旧值 B=0.7/C=0.5/D=0.3 偏乐观，对应"测算额度虚高"问题
-    _LIMIT_DISCOUNT = {"S": 1.0, "A": 1.0, "B": 0.5, "C": 0.3, "D": 0.15, "E": 0.0}
+    # v9 增量：改用模块级 _LIMIT_DISCOUNT（与 _build_evidence 共用同一份配置）
     discount = _LIMIT_DISCOUNT.get(overall_level, 0.5)
     final_min = int(round(median_min * discount))
     final_max = int(round(median_max * discount))
+    # v7 增量：综合额度也圆整到 5000 整数倍（与各产品一致）
+    final_min = _round_to_nice(final_min)
+    final_max = _round_to_nice(final_max)
 
     # E 级 或 D 级且分很低 → 强制低通过率（避免 "D + 极低分" 却显示 "中"）
     if overall_level == "E":

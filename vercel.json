@@ -1,4 +1,7 @@
 {
+  "buildCommand": "cd xinceutong-web && npm run build",
+  "installCommand": "cd xinceutong-web && npm ci --include=dev --no-audit --no-fund",
+  "outputDirectory": "xinceutong-web/dist",
   "rewrites": [
     { "source": "/api/(.*)", "destination": "/api/index.py" },
     { "source": "/(.*)", "destination": "/index.html" }

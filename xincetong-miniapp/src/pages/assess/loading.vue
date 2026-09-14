@@ -114,6 +114,9 @@ async function submit() {
     const res = await assessmentApi.submitAssessment({
       type: store.type,
       input_data: inputData,
+      // v7 增量：传银行 code 触发 bank_scorecard.py 的 apply_bank_bias（10 家银行差异化评分）
+      // 不传则用通用模型（1.0 权重），传了则按 BANK_FOCUS 表差异化
+      bank_code: store.bankCode || undefined,
       share_code: shareCode || undefined,
       promoter_code: promoterCode || undefined,
     })

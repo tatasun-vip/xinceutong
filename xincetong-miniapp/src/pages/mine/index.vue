@@ -62,12 +62,12 @@
       </view>
       <view class="pc-row">
         <view class="pc-item">
-          <text class="pc-num">¥{{ formatMoneyWan(promoterInfo.balance ?? 0) }}</text>
+          <text class="pc-num">{{ formatYuanWithSign(promoterInfo.balance ?? 0) }}</text>
           <text class="pc-label">可提现佣金</text>
         </view>
         <view class="pc-divider" />
         <view class="pc-item">
-          <text class="pc-num">¥{{ formatMoneyWan(promoterInfo.total_earnings ?? 0) }}</text>
+          <text class="pc-num">{{ formatYuanWithSign(promoterInfo.total_earnings ?? 0) }}</text>
           <text class="pc-label">累计收益</text>
         </view>
       </view>
@@ -143,7 +143,7 @@ import { useUserStore } from '@/store/user'
 import { usePromoterStore } from '@/store/promoter'
 import { useAssessmentStore } from '@/store/assessment'
 import { useSiteStore } from '@/store/site'
-import { formatMoneyWan, maskPhone } from '@/utils/format'
+import { formatYuanWithSign, maskPhone } from '@/utils/format'
 import { pageView, track } from '@/utils/track'
 import { getStorage } from '@/utils/storage'
 

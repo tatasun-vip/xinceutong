@@ -1,202 +1,104 @@
 """
-信测通 v5 P0 部署包上传脚本（纯 stdlib urllib）
+信测通 v11 部署包上传到 catbox（备用方案，包 > 50MB 时用）
 
-上传到 catbox.moe / 0x0.st / file.io（按优先级 fallback）。
-24h 有效（catbox）/ 1h 有效（0x0.st）/ 一次性（file.io）。
-
-用法：
-  cd /Users/suntata/CodeBuddy/20260907155240
-  python3 scripts/upload_to_catbox.py
-
-输出：URL + 服务器 wget 一行命令（直接复制粘贴）
+正常部署走 SSH 直传（scripts/upload_to_cvm.sh），只有包太大时才用此脚本中转。
 """
 import os
 import sys
 import json
-import mimetypes
 import urllib.request
-import urllib.parse
-import urllib.error
 from pathlib import Path
 
 ROOT = Path("/Users/suntata/CodeBuddy/20260907155240")
-ZIP_FILE = ROOT / "xincetong-v5.zip"
+DIST_DIR = ROOT / "dist"
 
-# 按优先级排序的临时文件空间
+# 自动找最新 zip
+if len(sys.argv) > 1:
+    ZIP_FILE = Path(sys.argv[1])
+else:
+    candidates = sorted(DIST_DIR.glob("xincetong-cvm-deploy-*.zip"), reverse=True)
+    if not candidates:
+        print("ERR: dist/xincetong-cvm-deploy-*.zip not found")
+        sys.exit(1)
+    ZIP_FILE = candidates[0]
+
 ENDPOINTS = [
-    {
-        "name": "litter.catbox.moe",
-        "url": "https://litter.catbox.moe/resources/internals/api.php",
-        "type": "catbox",
-        "expire": "24h",
-    },
-    {
-        "name": "catbox.moe 主站",
-        "url": "https://catbox.moe/user/api.php",
-        "type": "catbox",
-        "expire": "24h",
-    },
-    {
-        "name": "0x0.st",
-        "url": "https://0x0.st",
-        "type": "0x0st",
-        "expire": "1h（仅应急）",
-    },
+    ("catbox.moe", "catbox"),
+    ("0x0.st", "0x0"),
+    ("file.io", "fileio"),
 ]
 
 
-def make_multipart(file_path: Path, field_name: str, extra_fields: dict | None = None):
-    """构造 multipart/form-data（纯 stdlib）"""
-    boundary = "----FormBoundary7MA4YWxkTrZu0gW"
-    parts: list[bytes] = []
-    extra_fields = extra_fields or {}
-
-    # 额外字段
-    for k, v in extra_fields.items():
-        parts.append(f"--{boundary}".encode())
-        parts.append(f'Content-Disposition: form-data; name="{k}"'.encode())
-        parts.append(b"")
-        parts.append(v.encode() if isinstance(v, str) else v)
-
-    # 文件字段
-    mime, _ = mimetypes.guess_type(str(file_path))
-    mime = mime or "application/zip"
-    parts.append(f"--{boundary}".encode())
-    parts.append(
-        f'Content-Disposition: form-data; name="{field_name}"; filename="{file_path.name}"'.encode()
-    )
-    parts.append(f"Content-Type: {mime}".encode())
-    parts.append(b"")
-    parts.append(file_path.read_bytes())
-
-    parts.append(f"--{boundary}--".encode())
-    parts.append(b"")
-
-    body = b"\r\n".join(parts)
-    return body, f"multipart/form-data; boundary={boundary}"
-
-
-def upload_catbox(file_path: Path, endpoint_url: str) -> str | None:
-    """catbox.moe 系列（返回纯文本 URL）"""
-    body, ct = make_multipart(file_path, "fileToUpload", {"reqtype": "fileupload"})
-    req = urllib.request.Request(
-        endpoint_url,
-        data=body,
-        headers={"Content-Type": ct, "User-Agent": "xincetong-deploy/1.0"},
-        method="POST",
-    )
-    with urllib.request.urlopen(req, timeout=120) as resp:
-        text = resp.read().decode("utf-8", errors="replace").strip()
-    return text if text.startswith("http") else None
-
-
-def upload_0x0st(file_path: Path) -> str | None:
-    """0x0.st（POST 整个 body 即可）"""
-    with open(file_path, "rb") as f:
+def upload_catbox(path):
+    boundary = "----FB" + os.urandom(16).hex()
+    with open(path, "rb") as f:
         data = f.read()
+    body = (
+        f"--{boundary}\r\nContent-Disposition: form-data; name=\"reqtype\"\r\n\r\nfileupload\r\n"
+        f"--{boundary}\r\nContent-Disposition: form-data; name=\"fileToUpload\"; filename=\"{path.name}\"\r\n"
+        f"Content-Type: application/octet-stream\r\n\r\n"
+    ).encode() + data + f"\r\n--{boundary}--\r\n".encode()
     req = urllib.request.Request(
-        "https://0x0.st",
-        data=data,
-        headers={"Content-Type": "application/octet-stream", "User-Agent": "xincetong-deploy/1.0"},
-        method="POST",
+        "https://catbox.moe/user/api.php", data=body,
+        headers={"Content-Type": f"multipart/form-data; boundary={boundary}"},
     )
-    with urllib.request.urlopen(req, timeout=120) as resp:
-        text = resp.read().decode("utf-8", errors="replace").strip()
-    return text if text.startswith("http") else None
+    return urllib.request.urlopen(req, timeout=300).read().decode().strip()
 
 
-def upload_one(file_path: Path, ep: dict) -> str | None:
-    """根据 ep['type'] 调度"""
-    try:
-        if ep["type"] == "catbox":
-            return upload_catbox(file_path, ep["url"])
-        elif ep["type"] == "0x0st":
-            return upload_0x0st(file_path)
-    except urllib.error.HTTPError as e:
-        print(f"  [FAIL] HTTP {e.code}: {e.reason}")
-        # 读 body
-        try:
-            err_body = e.read().decode("utf-8", errors="replace")[:300]
-            print(f"         {err_body}")
-        except Exception:
-            pass
-    except Exception as e:
-        print(f"  [FAIL] {type(e).__name__}: {e}")
-    return None
+def upload_0x0(path):
+    with open(path, "rb") as f:
+        req = urllib.request.Request("https://0x0.st", data=f.read())
+        req.add_header("Content-Type", "application/octet-stream")
+        return urllib.request.urlopen(req, timeout=300).read().decode().strip()
+
+
+def upload_fileio(path):
+    with open(path, "rb") as f:
+        req = urllib.request.Request("https://file.io", data=f.read(), method="POST")
+        req.add_header("Content-Type", "application/octet-stream")
+        data = json.loads(urllib.request.urlopen(req, timeout=300).read().decode())
+        return data.get("link", "")
 
 
 def main():
-    print("=" * 60)
-    print("信测通 v5 P0 部署包上传")
-    print("=" * 60)
-    print()
-
     if not ZIP_FILE.exists():
-        print(f"❌ 部署包不存在: {ZIP_FILE}")
-        print(f"   请先跑：python3 scripts/build_deploy_zip.py")
+        print(f"ERR: file not found: {ZIP_FILE}")
         sys.exit(1)
 
     size_mb = ZIP_FILE.stat().st_size / 1024 / 1024
-    print(f"📦 部署包: {ZIP_FILE.name}")
-    print(f"   大小:   {size_mb:.2f} MB")
-    print(f"   路径:   {ZIP_FILE}\n")
+    print(f"==> Uploading: {ZIP_FILE} ({size_mb:.2f} MB)\n")
 
-    # 按优先级尝试
-    for ep in ENDPOINTS:
-        print(f"⬆️  尝试 {ep['name']}（{ep['expire']}）...")
-        url = upload_one(ZIP_FILE, ep)
-        if url:
-            print()
-            print("=" * 60)
-            print(f"✅ 上传成功！")
-            print(f"   URL:    {url}")
-            print(f"   有效:   {ep['expire']}")
-            print()
-            print("📋 服务器部署命令（直接复制）：")
-            print("=" * 60)
-            print()
-            print(f"# 1. 下载部署包")
-            print(f"wget -O /opt/xincetong-v5.zip '{url}'")
-            print()
-            print(f"# 2. 备份旧版")
-            print(f"cd /opt && cp -r xincetong-server xincetong-server.v4.bak 2>/dev/null")
-            print()
-            print(f"# 3. 解压覆盖")
-            print(f"cd /opt && unzip -oq xincetong-v5.zip")
-            print()
-            print(f"# 4. 安装依赖（首次部署）")
-            print(f"cd /opt/xincetong-server && pip install -r requirements.txt")
-            print()
-            print(f"# 5. 数据库迁移（加 dimensions 字段）")
-            db_paths = ["/opt/xincetong-server/server/db/salion.db", "/opt/xincetong-server/server/db/xincetong.db", "/opt/xincetong-server/salion.db"]
-            for dbp in db_paths:
-                print(f"# 检查 DB: ls -la {dbp}")
-            print(f"# 然后根据实际 DB 路径跑迁移：")
-            print(f"sqlite3 <DB路径> < /opt/xincetong-server/sql/migrations/0002_business_dimensions.sql")
-            print()
-            print(f"# 6. 补 v5 规则（38 条）")
-            print(f"cd /opt/xincetong-server && python3 -m scripts.init_business_v5_rules")
-            print()
-            print(f"# 7. 跑自检")
-            print(f"cd /opt/xincetong-server && python3 -m scripts.selfcheck_v5")
-            print()
-            print(f"# 8. 重启服务")
-            print(f"pm2 restart xincetong-server")
-            print()
-            print("=" * 60)
-            return 0
+    if size_mb < 50:
+        print("Tip: package < 50MB, prefer scp:")
+        print(f"  bash scripts/upload_to_cvm.sh {ZIP_FILE.name}\n")
+        try:
+            input("Press Enter to upload to catbox anyway, Ctrl+C to cancel: ")
+        except KeyboardInterrupt:
+            sys.exit(0)
 
-    print()
-    print("=" * 60)
-    print("❌ 所有上传点都失败，请检查网络后重试")
-    print("   或手动上传：scp / rsync / git push")
-    print("=" * 60)
-    return 1
+    for name, method in ENDPOINTS:
+        try:
+            print(f"==> Trying {name}...")
+            if method == "catbox":
+                result = upload_catbox(ZIP_FILE)
+            elif method == "0x0":
+                result = upload_0x0(ZIP_FILE)
+            else:
+                result = upload_fileio(ZIP_FILE)
+            if result.startswith("http"):
+                print(f"\nOK: {result}")
+                print(f"\n=== CVM one-liner deploy ===")
+                print(f"ssh root@82.156.166.188")
+                print(f"wget -O /tmp/{ZIP_FILE.name} '{result}'")
+                print(f"unzip -o /tmp/{ZIP_FILE.name} -d /tmp/xincetong-new/")
+                print(f"bash /tmp/cvm_deploy.sh /tmp/{ZIP_FILE.name}")
+                return
+        except Exception as e:
+            print(f"  WARN: {name} failed: {e}")
+            continue
+
+    print("\nERR: all endpoints failed, try scp instead")
 
 
 if __name__ == "__main__":
-    try:
-        sys.exit(main())
-    except KeyboardInterrupt:
-        print("\n用户中断")
-        sys.exit(1)
+    main()

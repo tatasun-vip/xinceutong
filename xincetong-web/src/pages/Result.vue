@@ -17,6 +17,18 @@ const products = ref<BankProduct[]>([])
 const result = ref<any>(null)
 const loading = ref(true)
 
+// v11 增量：额度格式化（千分位 + 元，去"X.X 万"格式）
+function formatLimit(min?: number, max?: number): string {
+  if (!min && !max) return '—'
+  const fmt = (n: number) => Math.round(n).toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g, ',')
+  if (min && max) {
+    if (min === max) return `${fmt(min)} 元`
+    return `${fmt(min)}~${fmt(max)} 元`
+  }
+  if (max) return `${fmt(max)} 元`
+  return `${fmt(min || 0)} 元`
+}
+
 onMounted(async () => {
   // 1) 先从 store / sessionStorage 取结果（Loading 页面 setResult 写入）
   if (store.result && route.params.id == String(store.result.assessment_id)) {
@@ -198,7 +210,7 @@ function aiAnswer(q: string): string {
   if (/90|改善|提升|预测/.test(q)) {
     const p90 = prediction.value.find(p => p.day === 'D+90')
     if (!p90) return '数据不足'
-    return `按当前修复节奏，90 天后等级预计从 ${lv} 升至 ${p90.level}，参考额度可达 ${(p90.limit_min/10000).toFixed(1)}~${(p90.limit_max/10000).toFixed(1)} 万，利率 ${p90.rate_min}~${p90.rate_max}%。`
+    return `按当前修复节奏，90 天后等级预计从 ${lv} 升至 ${p90.level}，参考额度可达 ${formatLimit(p90.limit_min, p90.limit_max)}，利率 ${p90.rate_min}~${p90.rate_max}%。`
   }
   if (/现在|该不该|立刻/.test(q)) {
     if (['S','A','B'].includes(lv)) return `${lv} 级属于准入优秀，可立即提交申请，建议优先选 ${bankName} 主推产品。`
@@ -378,7 +390,7 @@ const prediction = computed<any[]>(() => {
           <div class="rs-stat">
             <div class="rs-stat-label">参考额度</div>
             <div class="rs-stat-val text-num">
-              ¥ {{ ((result?.limit_min || 0) / 10000).toFixed(1) }} ~ {{ ((result?.limit_max || 0) / 10000).toFixed(1) }} 万
+              {{ formatLimit(result?.limit_min, result?.limit_max) }}
             </div>
           </div>
           <div class="rs-stat">
@@ -457,7 +469,7 @@ const prediction = computed<any[]>(() => {
               <div class="rs-pred-bar-fill" :style="{ width: p.score + '%' }"></div>
             </div>
             <div class="rs-pred-meta">
-              <div class="rs-pred-row"><span>额度</span><b>{{ (p.limit_min/10000).toFixed(1) }}~{{ (p.limit_max/10000).toFixed(1) }} 万</b></div>
+              <div class="rs-pred-row"><span>额度</span><b>{{ formatLimit(p.limit_min, p.limit_max) }}</b></div>
               <div class="rs-pred-row"><span>利率</span><b>{{ p.rate_min }}~{{ p.rate_max }}%</b></div>
             </div>
             <div class="rs-pred-tag" v-if="!p.current">+{{ p.growth }}%</div>
@@ -668,7 +680,7 @@ const prediction = computed<any[]>(() => {
               </div>
             </div>
             <div class="rs-share-meta">
-              参考额度 ¥ {{ ((result?.limit_min || 0) / 10000).toFixed(1) }} ~ {{ ((result?.limit_max || 0) / 10000).toFixed(1) }} 万
+              参考额度 {{ formatLimit(result?.limit_min, result?.limit_max) }}
               · 利率 {{ result?.rate_min || 0 }}~{{ result?.rate_max || 0 }}%
             </div>
             <div class="rs-share-foot">

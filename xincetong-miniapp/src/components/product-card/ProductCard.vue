@@ -107,22 +107,24 @@ const detail = computed(() => props.product as ProductResultDetail)
 const limitText = computed(() => {
   if (props.locked) return '???'
   if (props.product.limit_min === 0 && props.product.limit_max === 0) return '—'
-  return `${props.product.limit_min / 10000}-${props.product.limit_max / 10000} 万`
+  const fmt = (n: number) => Math.round(n).toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g, ',')
+  if (props.product.limit_min === props.product.limit_max) return `${fmt(props.product.limit_min)} 元`
+  return `${fmt(props.product.limit_min)}~${fmt(props.product.limit_max)} 元`
 })
 
 /**
- * P3-1 渠道上限（元 → 万，保留 1 位小数）
+ * P3-1 渠道上限（元 → 千分位 + 元，去"万"单位）
  * 当后端没传或为 0 时不展示该字段（老数据兼容）
  */
 const channelOnlineText = computed(() => {
   const v = props.product.channel_online_max
   if (!v) return '—'
-  return `${(v / 10000).toFixed(0)} 万`
+  return Math.round(v).toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g, ',') + ' 元'
 })
 const channelOfflineText = computed(() => {
   const v = props.product.channel_offline_max
   if (!v) return '—'
-  return `${(v / 10000).toFixed(0)} 万`
+  return Math.round(v).toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g, ',') + ' 元'
 })
 const showChannelCaps = computed(() => {
   // 仅当有线上/线下上限数据时展示（unlock 后才有）

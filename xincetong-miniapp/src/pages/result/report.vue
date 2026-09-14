@@ -306,7 +306,7 @@
               <view class="rp-m5-bar">
                 <view class="rp-m5-bar-fill" :style="{ width: p.score + '%' }" />
               </view>
-              <view class="rp-m5-row"><text>额度</text><b>{{ (p.limit_min/10000).toFixed(1) }}~{{ (p.limit_max/10000).toFixed(1) }} 万</b></view>
+              <view class="rp-m5-row"><text>额度</text><b>{{ formatLimit(p.limit_min, p.limit_max) }}</b></view>
               <view class="rp-m5-row"><text>利率</text><b>{{ p.rate_min }}~{{ p.rate_max }}%</b></view>
               <view v-if="!p.is_current" class="rp-m5-tag">+{{ p.growth_pct }}%</view>
             </view>
@@ -474,12 +474,16 @@ function productCardStyle(code: string) {
   } as any
 }
 
-// v9 增量：额度格式化（万元格式）
+// v11 增量：额度格式化改为元数 + 千分位（v9 旧版为"X.X 万"）
 function formatLimit(min?: number, max?: number): string {
   if (!min && !max) return '—'
-  if (!min) return `${(max || 0) / 10000} 万`
-  if (!max) return `${min / 10000} 万`
-  return `${min / 10000}-${max / 10000} 万`
+  const fmt = (n: number) => Math.round(n).toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g, ',')
+  if (min && max) {
+    if (min === max) return `${fmt(min)} 元`
+    return `${fmt(min)}~${fmt(max)} 元`
+  }
+  if (max) return `${fmt(max)} 元`
+  return `${fmt(min || 0)} 元`
 }
 
 const loading = ref(true)
@@ -590,7 +594,7 @@ const projectionGain = computed(() => {
   const passRankGain = proRank - curRank
   return {
     score: scoreGain,
-    limit: limitGain > 0 ? `${(limitGain / 10000).toFixed(1)} 万` : '',
+    limit: limitGain > 0 ? `+${Math.round(limitGain).toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g, ',')} 元` : '',
     passRank: passRankGain > 0 ? `从 ${cur.pass_probability} 提升到 ${pro.pass_probability}` : '持平',
   }
 })

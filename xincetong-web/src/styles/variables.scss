@@ -4,12 +4,12 @@
 // ============================================================================
 
 // ----------------------------------------------------------------------------
-// 字体（display + body + mono + 数字）
+// 字体（display + body + mono + 数字）— 苹果系统栈优先，离线也美观
 // ----------------------------------------------------------------------------
-$ff-base:    "Noto Sans SC", -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", "Hiragino Sans GB", sans-serif;
-$ff-serif:   "Noto Serif SC", "Source Han Serif SC", "Songti SC", "STSong", serif;
-$ff-mono:    "JetBrains Mono", "SF Mono", Menlo, Consolas, monospace;
-$ff-display: "Noto Serif SC", "Source Han Serif SC", serif;  // 数字 + 标题强调
+$ff-base:    -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", "Hiragino Sans GB", "Helvetica Neue", "Noto Sans SC", sans-serif;
+$ff-serif:   -apple-system, BlinkMacSystemFont, "PingFang SC", "Songti SC", "STSong", "Hiragino Sans GB", "Noto Serif SC", "Source Han Serif SC", serif;
+$ff-mono:    ui-monospace, "SF Mono", Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+$ff-display: -apple-system, BlinkMacSystemFont, "PingFang SC", "Songti SC", "STSong", "Hiragino Sans GB", "Noto Serif SC", "Source Han Serif SC", serif;  // 数字 + 标题强调
 
 // ----------------------------------------------------------------------------
 // 品牌主色（深海军蓝 — 信任、专业、稳重）

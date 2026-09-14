@@ -36,6 +36,8 @@ export function validateAssessment(data: ValidationReq) {
 export interface SubmitReq {
   type: 'personal' | 'business'
   input_data: Record<string, unknown>
+  /** v7 增量：传银行 code 触发 bank_scorecard.py 的 apply_bank_bias（10 家银行差异化评分） */
+  bank_code?: string
   share_code?: string
   promoter_code?: string
 }

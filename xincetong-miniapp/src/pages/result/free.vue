@@ -552,9 +552,13 @@ function formatTime(iso?: string) {
 
 function formatLimit(min?: number, max?: number) {
   if (!min && !max) return '—'
-  if (!min) return `${(max || 0) / 10000} 万`
-  if (!max) return `${min / 10000} 万`
-  return `${min / 10000}-${max / 10000} 万`
+  const fmt = (n: number) => Math.round(n).toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g, ',')
+  if (min && max) {
+    if (min === max) return `${fmt(min)} 元`
+    return `${fmt(min)}~${fmt(max)} 元`
+  }
+  if (max) return `${fmt(max)} 元`
+  return `${fmt(min || 0)} 元`
 }
 
 // ========== v4 增量 · M6 产品匹配度（与 web 端同源：r.product_matches 优先，本地兜底） ==========
@@ -709,7 +713,7 @@ function renderShareCanvas(): Promise<void> {
     const limMin = r.overall?.limit_min || 0
     const limMax = r.overall?.limit_max || 0
     const limText = limMin || limMax
-      ? `参考额度 ¥ ${(limMin / 10000).toFixed(1)} ~ ${(limMax / 10000).toFixed(1)} 万 · 利率 ${r.overall?.rate_min || 0}~${r.overall?.rate_max || 0}%`
+      ? `参考额度 ${formatLimit(limMin, limMax)} · 利率 ${r.overall?.rate_min || 0}~${r.overall?.rate_max || 0}%`
       : ''
     if (limText) ctx.fillText(limText, W / 2, 720)
 
@@ -801,7 +805,7 @@ function aiAnswer(q: string): string {
   if (/90|改善|提升|预测/.test(q)) {
     const p = r.improvement_projection
     if (!p) return '亲~ 改善数据未生成，请查看完整报告。'
-    return `亲，按当前修复节奏，90 天后等级预计从 ${lv} 升至 ${p.level}，参考额度可达 ${(p.limit_min/10000).toFixed(1)}~${(p.limit_max/10000).toFixed(1)} 万，通过率 ${p.pass_probability}。`
+    return `亲，按当前修复节奏，90 天后等级预计从 ${lv} 升至 ${p.level}，参考额度可达 ${formatLimit(p.limit_min, p.limit_max)}，通过率 ${p.pass_probability}。`
   }
   if (/现在|该不该|立刻|不同|不一样|别家/.test(q)) {
     if (['S', 'A', 'B'].includes(lv)) return `亲~ ${lv} 级属于准入优秀，可立即提交申请，本银行 ${r.bank_focus || '审批流程完善'}。`

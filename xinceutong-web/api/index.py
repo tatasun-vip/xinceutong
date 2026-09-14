@@ -2,22 +2,14 @@
 Vercel Serverless 入口（Python ASGI）
 转发所有请求到 FastAPI app
 
-Vercel Python runtime 会把仓库根加入 sys.path，
-但我们用了 monorepo 结构，需要手动加 xinceutong-server 进去
+Vercel Python runtime 只把 api/ 目录的文件传到 function runtime，
+所以我们把 xinceutong-server/ 复制到 api/_server/ 一并打包。
 """
 import os
 import sys
 
-# 把后端项目根加入 sys.path，让 from app.xxx import yyy 能找到
-# api/index.py 在 xinceutong-web/api/ 下，往上两级到仓库根，再加 xinceutong-server
-_BACKEND_ROOT = os.path.abspath(
-    os.path.join(os.path.dirname(__file__), "..", "..", "xinceutong-server")
-)
-# 兜底：探测仓库根（xinceutong-web 的祖父目录）
-if not os.path.isdir(_BACKEND_ROOT):
-    _BACKEND_ROOT = os.path.abspath(
-        os.path.join(os.path.dirname(__file__), "..", "xinceutong-server")
-    )
+# 后端项目根：api/_server
+_BACKEND_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "_server"))
 sys.path.insert(0, _BACKEND_ROOT)
 
 # 导入 FastAPI app（顶层会触发 init_db）

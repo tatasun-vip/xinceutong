@@ -106,20 +106,42 @@ AsyncSessionLocal: async_sessionmaker[AsyncSession] = async_sessionmaker(
 
 
 async def _auto_seed_if_empty() -> None:
-    """如果 SQLite 模式 + banks 表为空 → 自动跑 seed_banks 注入演示数据"""
+    """如果 SQLite 模式 + 关键表为空 → 自动跑 seed 注入演示数据"""
     try:
         from app.models.bank import Bank
+        from app.models.product_type import ProductType
+        from app.models.site_config import SiteConfig
         from sqlalchemy import select, func
+
         async with AsyncSessionLocal() as session:
-            count = (await session.execute(select(func.count(Bank.id)))).scalar() or 0
-            if count > 0:
-                logger.info(f"[DB] banks 表已有 {count} 条数据，跳过 seed")
-                return
-        logger.info("[DB] banks 表为空 → 自动跑 seed_banks 注入演示数据")
-        # 动态 import 避免 Vercel 冷启动时把整个 seed 脚本加载进内存
-        from scripts.seed_banks import main as seed_main
-        await seed_main()
-        logger.info("[DB] ✅ seed_banks 完成")
+            bank_count = (await session.execute(select(func.count(Bank.id)))).scalar() or 0
+            product_count = (await session.execute(select(func.count(ProductType.id)))).scalar() or 0
+            site_count = (await session.execute(select(func.count(SiteConfig.id)))).scalar() or 0
+
+        if bank_count > 0 and product_count > 0 and site_count > 0:
+            logger.info(f"[DB] banks={bank_count} products={product_count} site_config={site_count} 全部已有数据，跳过 seed")
+            return
+
+        logger.info(f"[DB] 缺数据 (banks={bank_count} products={product_count} site={site_count}) → 自动跑 seed")
+
+        if bank_count == 0:
+            from scripts.seed_banks import main as seed_banks_main
+            await seed_banks_main()
+            logger.info("[DB] ✅ seed_banks 完成")
+        if product_count == 0:
+            try:
+                from scripts.init_product_types import main as seed_products
+                await seed_products()
+                logger.info("[DB] ✅ init_product_types 完成")
+            except Exception as e:
+                logger.warning(f"[DB] init_product_types 失败（不影响启动）: {e}")
+        if site_count == 0:
+            try:
+                from scripts.init_site_config import main as seed_site
+                await seed_site()
+                logger.info("[DB] ✅ init_site_config 完成")
+            except Exception as e:
+                logger.warning(f"[DB] init_site_config 失败（不影响启动）: {e}")
     except Exception as e:
         logger.warning(f"[DB] auto_seed 失败（不影响启动）: {e}")
 

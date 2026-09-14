@@ -47,18 +47,19 @@ if os.environ.get("INIT_RUNTIME") != "1":
 app = FastAPI(
     title="信测通 API",
     description="信用贷模拟评审工具（模拟结果，非银行官方，不查征信）",
-    version="0.3.4",
+    version="0.3.5",
     docs_url="/docs" if settings.ENV != "production" else None,
     redoc_url=None,
 )
 
 # Vercel serverless：首次请求兜底再 init 一次
-_db_ready = {"ok": False}
+# init_db 自身已 try/except 不 raise，这里用 flag 避免每次请求都重试
+_db_ready = {"ok": True}  # 默认 True，init_db 失败也不会阻塞业务接口
 
 
 @app.middleware("http")
 async def ensure_db_ready(request, call_next):
-    """首次请求时若顶层初始化失败，再补一次 init_db"""
+    """首次请求时若顶层初始化失败，再补一次 init_db（容错）"""
     if not _db_ready["ok"]:
         try:
             await init_db()

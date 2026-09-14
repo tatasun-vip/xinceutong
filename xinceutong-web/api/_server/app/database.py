@@ -177,7 +177,7 @@ async def close_db() -> None:
         logger.warning(f"关闭连接池失败: {e}")
 
 
-async def get_db() -> AsyncGenerator[AsyncSession]:
+async def get_db() -> AsyncGenerator[AsyncSession, None]:
     """FastAPI 依赖：每个请求一个 Session"""
     async with AsyncSessionLocal() as session:
         try:

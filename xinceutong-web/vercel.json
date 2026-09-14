@@ -1,4 +1,5 @@
 {
+  "installCommand": "npm ci --no-audit --no-fund --prefer-offline",
   "rewrites": [
     { "source": "/api/(.*)", "destination": "/api/index.py" },
     { "source": "/(.*)", "destination": "/index.html" }
